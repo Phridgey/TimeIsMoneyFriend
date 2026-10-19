@@ -207,6 +207,12 @@ end
 
 local LEFT, RIGHT, TOP, BOTTOM = 56, 44, 12, 20
 
+-- money text that still reads as money when it is zero ('0c', not a bare '0')
+local function gold_text(v)
+	if not v or v == 0 then return '|cffa0a0a00c' .. FONT_COLOR_CODE_CLOSE end
+	return money.to_string2(v)
+end
+
 -- sums[day][series key]
 local function sums(days, index)
 	local out = {}
@@ -293,8 +299,8 @@ function M.draw()
 	end
 	local net = (t.earned or 0) - (t.spent or 0) - (t.lost or 0)
 	totals:SetText(format('Last %d days:  spent %s   deposits lost %s   from sales %s   net %s%s',
-		n, money.to_string2(t.spent or 0), money.to_string2(t.lost or 0),
-		money.to_string2(t.earned or 0), net < 0 and '-' or '', money.to_string2(math.abs(net))))
+		n, gold_text(t.spent), gold_text(t.lost),
+		gold_text(t.earned), net < 0 and '-' or '', gold_text(math.abs(net))))
 end
 
 function M.hover_update()
@@ -319,7 +325,7 @@ function M.hover_update()
 	for _, s in ipairs(SERIES) do
 		local v = view.data[i][s.key]
 		if v then
-			GameTooltip:AddDoubleLine(s.label, s.gold and money.to_string2(v) or v, s.color[1], s.color[2], s.color[3], 1, 1, 1)
+			GameTooltip:AddDoubleLine(s.label, s.gold and gold_text(v) or v, s.color[1], s.color[2], s.color[3], 1, 1, 1)
 		end
 	end
 	GameTooltip:Show()

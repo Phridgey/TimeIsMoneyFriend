@@ -144,21 +144,29 @@ function set_descend(target, steps, rest)
 	aux.account_data.descend[selected_item.key] = {target = target or t, steps = steps or n, rest = rest or r}
 end
 
--- the price the descent starts from: the buyout, or the starting bid without a buyout
+-- the price the descent starts from: the lowest buyout per item from other sellers in the
+-- last scan; with no other sellers, your own buyout (or starting bid) instead
 function descend_reference()
+	local lowest
+	for _, record in (selected_item and buyout_records[selected_item.key] or {}) do
+		if not record.own and record.unit_price > 0 and (not lowest or record.unit_price < lowest) then
+			lowest = record.unit_price
+		end
+	end
+	if lowest then return lowest, true end
 	local buyout = get_unit_buyout_price()
-	return buyout > 0 and buyout or get_unit_start_price()
+	return buyout > 0 and buyout or get_unit_start_price(), false
 end
 
 -- the plan for the selected item, or nil and the reason it can't be posted yet
 function descend_plan()
 	local target, steps, rest = get_descend()
-	local reference = descend_reference()
+	local reference, from_market = descend_reference()
 	if target <= 0 then return nil, 'set a target price' end
 	if steps <= 0 then return nil, 'set the number of steps' end
 	if reference <= 0 then return nil, 'set a price to start from' end
-	if target >= reference then return nil, 'the target must be below your price' end
-	return {step = (reference - target) / steps, steps = steps, rest = rest, target = target, reference = reference}
+	if target >= reference then return nil, 'the target must be below the starting price (' .. money.to_string(reference, nil, true) .. ')' end
+	return {step = (reference - target) / steps, steps = steps, rest = rest, target = target, reference = reference, from_market = from_market}
 end
 
 -- the unit price of auction number i (1 = first)
@@ -405,7 +413,7 @@ function post_auctions()
 				for i = 1, posted do
 					local start, buyout = unit_start_price, unit_buyout_price
 					if descend then
-						if start == 0 then start = buyout end
+						start, buyout = descend.reference, descend.reference
 						start = descended_price(start, i, descend.step, descend.steps)
 						buyout = descended_price(buyout, i, descend.step, descend.steps)
 						if buyout > 0 then start = min(start, buyout) end
@@ -441,12 +449,12 @@ function validate_parameters()
         post_button:Disable()
         return
     end
-    if get_unit_buyout_price() > 0 and get_unit_start_price() > get_unit_buyout_price() then
-        post_button:Disable()
-        return
-    end
     if descending then
         if descend_plan() then post_button:Enable() else post_button:Disable() end
+        return
+    end
+    if get_unit_buyout_price() > 0 and get_unit_start_price() > get_unit_buyout_price() then
+        post_button:Disable()
         return
     end
     if get_unit_start_price() == 0 then

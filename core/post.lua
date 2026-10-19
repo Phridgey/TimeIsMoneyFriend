@@ -48,7 +48,7 @@ function post_auction(slot, k)
 		local buyout_price = state.unit_buyout_price
 		
 		-- descending post never autoprices: it counts down from your own price
-		if state.descend and start_price == 0 then start_price = buyout_price end
+		if state.descend then start_price, buyout_price = state.descend.reference, state.descend.reference end
 
 		--use autoprice heuristic if start bid 0 is set
 		if start_price == 0 and not state.descend then

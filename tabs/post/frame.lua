@@ -205,14 +205,16 @@ function aux.handle.INIT_UI()
             GameTooltip:AddLine('in: how many auctions to take to get there. Each one is the same', 1, 1, 1)
             GameTooltip:AddLine('step cheaper than the last, and the last of them is at the target.', 1, 1, 1)
             GameTooltip:AddLine('+: how many more auctions to post at the target.', 1, 1, 1)
-            GameTooltip:AddLine('One item per auction, counting down from your buyout price;', 1, 1, 1)
-            GameTooltip:AddLine('Stack Size and Stack Count are ignored, and so is autopricing.', 1, 1, 1)
+            GameTooltip:AddLine('It counts down from the lowest buyout by other sellers (or your own', 1, 1, 1)
+            GameTooltip:AddLine('price if there are none), one item per auction. Your price boxes,', 1, 1, 1)
+            GameTooltip:AddLine('Stack Size, Stack Count and autopricing are not used.', 1, 1, 1)
             if selected_item then
                 local plan, why = descend_plan()
                 GameTooltip:AddLine(' ')
                 if not plan then
                     GameTooltip:AddLine('To post: ' .. why .. '.', 1, .5, .5)
                 else
+                    GameTooltip:AddDoubleLine(plan.from_market and 'Lowest buyout now' or 'Your price', money.to_string(plan.reference, nil, true), .7, .7, .7, .7, .7, .7)
                     for i = 1, plan.steps do
                         if i <= 3 or i == plan.steps then
                             GameTooltip:AddDoubleLine('Auction ' .. i, money.to_string(descended_price(plan.reference, i, plan.step, plan.steps), nil, true), 1, 1, 1, 1, 1, 1)
