@@ -124,6 +124,35 @@ function set_unit_start_price(amount)
 	write_settings(settings)
 end
 
+-- Descending post: each auction goes up one step cheaper than the one before, for a set
+-- number of steps; the rest go up at the lowest price reached. Off after every reload.
+descending = false
+
+function get_descend(key)
+	key = key or (selected_item and selected_item.key)
+	aux.account_data.descend = aux.account_data.descend or {}
+	local d = key and aux.account_data.descend[key]
+	return d and d.step or 0, d and d.steps or 0
+end
+
+function set_descend(step, steps)
+	if not selected_item then return end
+	aux.account_data.descend = aux.account_data.descend or {}
+	local old_step, old_steps = get_descend()
+	aux.account_data.descend[selected_item.key] = {step = step or old_step, steps = steps or old_steps}
+end
+
+-- the unit price of auction number i (1 = first) under descending post
+function descended_price(price, i, step, steps)
+	if price <= 0 then return price end
+	return max(1, price - step * min(i, steps))
+end
+
+function descend_ready()
+	local step, steps = get_descend()
+	return step > 0 and steps > 0
+end
+
 function get_unit_buyout_price()
 	return selected_item and read_settings().buyout_price or 0
 end
@@ -328,56 +357,20 @@ function post_auctions()
             duration_code = 4
 		end
 
-		post.start(
-			key,
-			stack_size,
-			duration,
-            unit_start_price,
-            unit_buyout_price,
-			stack_count,
-			function(posted)
-				if not frame:IsShown() then
-					return
-				end
-				for i = 1, posted do
-                    record_auction(key, stack_size, unit_start_price * stack_size, unit_buyout_price, duration_code, UnitName'player')
-                end
-                update_inventory_records()
-				local same
-                for _, record in inventory_records do
-                    if record.key == key then
-	                    same = record
-	                    break
-                    end
-                end
-                if same then
-	                update_item(same)
-                else
-                    selected_item = nil
-                end
-                refresh = true
+		local descend
+		if descending then
+			if not descend_ready() then
+				aux.print('Descending post: set the step and the number of steps first.')
+				return
 			end
-		)
-	end
-end
-
-function M.post_auctions_bind()
-	if selected_item then
-        local unit_start_price = get_unit_start_price()
-        local unit_buyout_price = get_unit_buyout_price()
-        local stack_size = stack_size_slider:GetValue()
-        local stack_count
-        stack_count = stack_count_slider:GetValue()
-        local duration = UIDropDownMenu_GetSelectedValue(duration_dropdown)
-		local key = selected_item.key
-
-        local duration_code
-		if duration == DURATION_2 then
-            duration_code = 2
-		elseif duration == DURATION_8 then
-            duration_code = 3
-		elseif duration == DURATION_24 then
-            duration_code = 4
+			local step, steps = get_descend()
+			descend = {step = step, steps = steps}
+			local reference = unit_buyout_price > 0 and unit_buyout_price or unit_start_price
+			if reference > 0 then
+				aux.print(format('Descending post: %d auctions, %s down to %s per item.', stack_count,
+					money.to_string(descended_price(reference, 1, step, steps), nil, true),
+					money.to_string(descended_price(reference, stack_count, step, steps), nil, true)))
+			end
 		end
 
 		post.start(
@@ -392,7 +385,13 @@ function M.post_auctions_bind()
 					return
 				end
 				for i = 1, posted do
-                    record_auction(key, stack_size, unit_start_price * stack_size, unit_buyout_price, duration_code, UnitName'player')
+					local start, buyout = unit_start_price, unit_buyout_price
+					if descend then
+						start = descended_price(start, i, descend.step, descend.steps)
+						buyout = descended_price(buyout, i, descend.step, descend.steps)
+						if buyout > 0 then start = min(start, buyout) end
+					end
+                    record_auction(key, stack_size, start * stack_size, buyout, duration_code, UnitName'player')
                 end
                 update_inventory_records()
 				local same
@@ -408,9 +407,14 @@ function M.post_auctions_bind()
                     selected_item = nil
                 end
                 refresh = true
-			end
+			end,
+			descend
 		)
 	end
+end
+
+function M.post_auctions_bind()
+	return post_auctions()
 end
 
 function validate_parameters()
@@ -421,6 +425,14 @@ function validate_parameters()
     if get_unit_buyout_price() > 0 and get_unit_start_price() > get_unit_buyout_price() then
         post_button:Disable()
         return
+    end
+    if descending then
+        local step, steps = get_descend()
+        local reference = get_unit_buyout_price() > 0 and get_unit_buyout_price() or get_unit_start_price()
+        if step <= 0 or steps <= 0 or (reference > 0 and reference - step * min(steps, stack_count_slider:GetValue()) < 1) then
+            post_button:Disable()
+            return
+        end
     end
     if get_unit_start_price() == 0 then
         post_button:Enable()
@@ -450,7 +462,16 @@ function update_item_configuration()
         duration_dropdown:Hide()
         hide_checkbox:Hide()
         vendor_price_label:Hide()
+        descend_row:Hide()
     else
+        descend_row:Show()
+        do
+            local step, steps = get_descend()
+            local step_text = money.to_string(step, true, nil, nil, true)
+            local steps_text = steps > 0 and tostring(steps) or ''
+            if not descend_step_input.focused and descend_step_input:GetText() ~= step_text then descend_step_input:SetText(step_text) end
+            if not descend_steps_input.focused and descend_steps_input:GetText() ~= steps_text then descend_steps_input:SetText(steps_text) end
+        end
 		unit_start_price_input:Show()
         unit_buyout_price_input:Show()
         stack_size_slider:Show()

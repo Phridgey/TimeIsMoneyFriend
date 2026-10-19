@@ -151,6 +151,14 @@ function post_auction(slot, k)
 
 		end
 		
+		-- descending post: this auction is one step cheaper than the one before
+		if state.descend then
+			local drop = state.descend.step * min(state.posted + 1, state.descend.steps)
+			if buyout_price > 0 then buyout_price = max(1, buyout_price - drop) end
+			start_price = max(1, start_price - drop)
+			if buyout_price > 0 then start_price = min(start_price, buyout_price) end
+		end
+
 		StartAuction(max(1, aux.round(start_price * item_info.aux_quantity)), aux.round(buyout_price * item_info.aux_quantity), state.duration)
 
 		local send_signal, signal_received = aux.signal()
@@ -186,7 +194,7 @@ function M.stop()
 	end
 end
 
-function M.start(item_key, stack_size, duration, unit_start_price, unit_buyout_price, count, callback)
+function M.start(item_key, stack_size, duration, unit_start_price, unit_buyout_price, count, callback, descend)
 	stop()
 	state = {
 		thread_id = aux.thread(process),
@@ -198,5 +206,6 @@ function M.start(item_key, stack_size, duration, unit_start_price, unit_buyout_p
 		count = count,
 		posted = 0,
 		callback = callback,
+		descend = descend,
 	}
 end

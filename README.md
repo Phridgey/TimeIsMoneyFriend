@@ -36,6 +36,10 @@ auto-buy.
 **Post tab** – item type, rarity and sort-order filters, and a compact list that fits
 twice as many items.
 
+**Descending post** – tick *Step down* beside the Post button, enter a step (per item) and
+a number of steps: each auction goes up one step cheaper than the one before, and the rest
+at the lowest price reached. Hover it to see the prices. It turns itself off after a reload.
+
 **Shift + click a bag item** while the window is open: on the Search tab it searches for
 it, on the Post tab it picks it for posting.
 
