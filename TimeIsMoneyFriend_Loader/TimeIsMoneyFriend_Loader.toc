@@ -1,0 +1,8 @@
+## Interface: 11200
+## Title: Time is Money, Friend (loader)
+## Notes: Keeps Time is Money, Friend trading stats and loads it in Orgrimmar, Everlook, Gadgetzan or at an auctioneer (/timf loading).
+## Author: Phridgey
+## Version: 0.1
+## SavedVariables: AuxStatsDB
+
+Loader.lua

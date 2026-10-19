@@ -1,0 +1,65 @@
+## Interface: 11200
+## Author: shirsig
+## OptionalDeps: ShaguTweaks
+## Title: Time is Money, Friend
+## Notes: Auction house addon (based on aux). /timf
+## SavedVariables: aux
+## LoadOnDemand: 1
+## Dependencies: TimeIsMoneyFriend_Loader
+
+libs\package.lua
+libs\T.lua
+libs\ChatThrottleLib.lua
+
+aux-addon.lua
+util.lua
+control.lua
+color.lua
+gui\core.lua
+frame.lua
+util\persistence.lua
+util\sort.lua
+util\money.lua
+core\cache.lua
+util\info.lua
+core\history.lua
+core\disenchant.lua
+util\filter.lua
+util\completion.lua
+core\slash.lua
+core\scan.lua
+util\scan.lua
+core\stack.lua
+core\post.lua
+core\tooltip.lua
+core\shortcut.lua
+
+gui\listing.lua
+gui\auction_listing.lua
+gui\item_listing.lua
+gui\purchase_summary.lua
+
+tabs\search\core.lua
+tabs\search\results.lua
+tabs\search\saved.lua
+tabs\search\filter.lua
+tabs\search\frame.lua
+
+tabs\post\core.lua
+tabs\post\frame.lua
+
+tabs\auctions\core.lua
+tabs\auctions\frame.lua
+
+tabs\bids\core.lua
+tabs\bids\frame.lua
+
+tabs\stats\core.lua
+tabs\stats\items.lua
+
+core\crafting.lua
+core\professions.lua
+
+localization.lua
+
+
