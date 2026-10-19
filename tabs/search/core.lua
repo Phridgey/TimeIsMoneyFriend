@@ -42,9 +42,8 @@ end
 
 function result_click(row, button)
 	if IsShiftKeyDown() and button == 'LeftButton' then
-		set_filter(strlower(info.item(row.record.item_id).name) .. '/exact', true)
+		set_filter(strlower(info.item(row.record.item_id).name) .. '/exact')
 	elseif IsAltKeyDown() then
-		if current_search().search_only then return end
 		if current_search().table:GetSelection().record == row.record then
 			if button == 'LeftButton' then
 				buyout_button:Click()

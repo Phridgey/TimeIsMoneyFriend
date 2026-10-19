@@ -349,10 +349,6 @@ function M.execute(resume, real_time, search_only)
 	local continuation = resume and current_search().continuation
 	discard_continuation()
 	current_search().active = true
-	if current_search().search_only then
-		bid_button:Disable()
-		buyout_button:Disable()
-	end
 	update_start_stop()
 	clear_control_focus()
 	set_subtab(RESULTS)
@@ -376,7 +372,7 @@ do
 	function find_auction(record)
 		local search = current_search()
 
-		if search.search_only or not search.table:ContainsRecord(record) or info.is_player(record.owner) then
+		if not search.table:ContainsRecord(record) or info.is_player(record.owner) then
 			return
 		end
 
@@ -429,11 +425,6 @@ do
 	end
 
 	function on_update()
-		if current_search().search_only then
-			buyout_button:Disable()
-			bid_button:Disable()
-			return
-		end
 		if state == IDLE or state == SEARCHING then
 			buyout_button:Disable()
 			bid_button:Disable()
