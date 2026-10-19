@@ -379,8 +379,10 @@ function post_auctions()
 				return
 			end
 			descend = plan
+			-- one item per auction, so the counts are numbers of items
+			if not selected_item.max_charges then stack_size = 1 end
 			local wanted = plan.steps + plan.rest
-			stack_count = min(wanted, stack_count_slider_max())
+			stack_count = min(wanted, selected_item.max_charges and stack_count_slider_max() or selected_item.availability[0])
 			if stack_count < wanted then
 				aux.print(format('Descending post: only enough for %d of the %d auctions.', stack_count, wanted))
 			end
@@ -403,6 +405,7 @@ function post_auctions()
 				for i = 1, posted do
 					local start, buyout = unit_start_price, unit_buyout_price
 					if descend then
+						if start == 0 then start = buyout end
 						start = descended_price(start, i, descend.step, descend.steps)
 						buyout = descended_price(buyout, i, descend.step, descend.steps)
 						if buyout > 0 then start = min(start, buyout) end
