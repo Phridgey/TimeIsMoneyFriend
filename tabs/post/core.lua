@@ -124,33 +124,47 @@ function set_unit_start_price(amount)
 	write_settings(settings)
 end
 
--- Descending post: each auction goes up one step cheaper than the one before, for a set
--- number of steps; the rest go up at the lowest price reached. Off after every reload.
+-- Descending post: from your price down to a target price in a set number of auctions,
+-- each one the same step cheaper (1/N of the gap per step, so auction N is at the target),
+-- then a set number more at the target. Off after every reload.
 descending = false
 
+-- target (copper per item), steps (auctions on the way down), rest (auctions at the target)
 function get_descend(key)
 	key = key or (selected_item and selected_item.key)
 	aux.account_data.descend = aux.account_data.descend or {}
 	local d = key and aux.account_data.descend[key]
-	return d and d.step or 0, d and d.steps or 0
+	return d and d.target or 0, d and d.steps or 0, d and d.rest or 0
 end
 
-function set_descend(step, steps)
+function set_descend(target, steps, rest)
 	if not selected_item then return end
 	aux.account_data.descend = aux.account_data.descend or {}
-	local old_step, old_steps = get_descend()
-	aux.account_data.descend[selected_item.key] = {step = step or old_step, steps = steps or old_steps}
+	local t, n, r = get_descend()
+	aux.account_data.descend[selected_item.key] = {target = target or t, steps = steps or n, rest = rest or r}
 end
 
--- the unit price of auction number i (1 = first) under descending post
+-- the price the descent starts from: the buyout, or the starting bid without a buyout
+function descend_reference()
+	local buyout = get_unit_buyout_price()
+	return buyout > 0 and buyout or get_unit_start_price()
+end
+
+-- the plan for the selected item, or nil and the reason it can't be posted yet
+function descend_plan()
+	local target, steps, rest = get_descend()
+	local reference = descend_reference()
+	if target <= 0 then return nil, 'set a target price' end
+	if steps <= 0 then return nil, 'set the number of steps' end
+	if reference <= 0 then return nil, 'set a price to start from' end
+	if target >= reference then return nil, 'the target must be below your price' end
+	return {step = (reference - target) / steps, steps = steps, rest = rest, target = target, reference = reference}
+end
+
+-- the unit price of auction number i (1 = first)
 function descended_price(price, i, step, steps)
 	if price <= 0 then return price end
 	return max(1, price - step * min(i, steps))
-end
-
-function descend_ready()
-	local step, steps = get_descend()
-	return step > 0 and steps > 0
 end
 
 function get_unit_buyout_price()
@@ -359,18 +373,20 @@ function post_auctions()
 
 		local descend
 		if descending then
-			if not descend_ready() then
-				aux.print('Descending post: set the step and the number of steps first.')
+			local plan, why = descend_plan()
+			if not plan then
+				aux.print('Descending post: ' .. why .. ' first.')
 				return
 			end
-			local step, steps = get_descend()
-			descend = {step = step, steps = steps}
-			local reference = unit_buyout_price > 0 and unit_buyout_price or unit_start_price
-			if reference > 0 then
-				aux.print(format('Descending post: %d auctions, %s down to %s per item.', stack_count,
-					money.to_string(descended_price(reference, 1, step, steps), nil, true),
-					money.to_string(descended_price(reference, stack_count, step, steps), nil, true)))
+			descend = plan
+			local wanted = plan.steps + plan.rest
+			stack_count = min(wanted, stack_count_slider_max())
+			if stack_count < wanted then
+				aux.print(format('Descending post: only enough for %d of the %d auctions.', stack_count, wanted))
 			end
+			aux.print(format('Descending post: %d auctions from %s down to %s per item, then %d at %s.',
+				plan.steps, money.to_string(descended_price(plan.reference, 1, plan.step, plan.steps), nil, true),
+				money.to_string(plan.target, nil, true), plan.rest, money.to_string(plan.target, nil, true)))
 		end
 
 		post.start(
@@ -427,12 +443,8 @@ function validate_parameters()
         return
     end
     if descending then
-        local step, steps = get_descend()
-        local reference = get_unit_buyout_price() > 0 and get_unit_buyout_price() or get_unit_start_price()
-        if step <= 0 or steps <= 0 or (reference > 0 and reference - step * min(steps, stack_count_slider:GetValue()) < 1) then
-            post_button:Disable()
-            return
-        end
+        if descend_plan() then post_button:Enable() else post_button:Disable() end
+        return
     end
     if get_unit_start_price() == 0 then
         post_button:Enable()
@@ -466,11 +478,13 @@ function update_item_configuration()
     else
         descend_row:Show()
         do
-            local step, steps = get_descend()
-            local step_text = money.to_string(step, true, nil, nil, true)
-            local steps_text = steps > 0 and tostring(steps) or ''
-            if not descend_step_input.focused and descend_step_input:GetText() ~= step_text then descend_step_input:SetText(step_text) end
-            if not descend_steps_input.focused and descend_steps_input:GetText() ~= steps_text then descend_steps_input:SetText(steps_text) end
+            local target, steps, rest = get_descend()
+            local function put(box, text)
+                if not box.focused and box:GetText() ~= text then box:SetText(text) end
+            end
+            put(descend_target_input, money.to_string(target, true, nil, nil, true))
+            put(descend_steps_input, steps > 0 and tostring(steps) or '')
+            put(descend_rest_input, rest > 0 and tostring(rest) or '')
         end
 		unit_start_price_input:Show()
         unit_buyout_price_input:Show()
@@ -529,6 +543,11 @@ function undercut(record, stack_size, stack)
         end
     end
     return price / stack_size
+end
+
+function stack_count_slider_max()
+    local _, high = stack_count_slider:GetMinMaxValues()
+    return high or 0
 end
 
 function quantity_update(maximize_count)

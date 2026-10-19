@@ -191,9 +191,9 @@ function aux.handle.INIT_UI()
         refresh_button = btn
     end
     do
-        -- Descending post: [x] Step down [2.5s] x [10]
+        -- Descending post: [x] To [85s] in [10] + [10]
         local row = CreateFrame('Frame', nil, frame.parameters)
-        row:SetWidth(180)
+        row:SetWidth(200)
         row:SetHeight(25)
         row:SetPoint('TOPLEFT', refresh_button, 'TOPRIGHT', 6, 0)
         descend_row = row
@@ -201,32 +201,35 @@ function aux.handle.INIT_UI()
         local function explain()
             GameTooltip:SetOwner(row, 'ANCHOR_TOPRIGHT')
             GameTooltip:AddLine('Descending post')
-            GameTooltip:AddLine('Each auction goes up one step cheaper per item than the one before,', 1, 1, 1)
-            GameTooltip:AddLine('for the number of steps set here. The rest go up at the lowest', 1, 1, 1)
-            GameTooltip:AddLine('price reached. The first auction is already one step below your price.', 1, 1, 1)
+            GameTooltip:AddLine('To: the target price per item.', 1, 1, 1)
+            GameTooltip:AddLine('in: how many auctions to take to get there. Each one is the same', 1, 1, 1)
+            GameTooltip:AddLine('step cheaper than the last, and the last of them is at the target.', 1, 1, 1)
+            GameTooltip:AddLine('+: how many more auctions to post at the target.', 1, 1, 1)
+            GameTooltip:AddLine('It starts from your buyout price and ignores Stack Count.', 1, 1, 1)
             if selected_item then
-                local step, steps = get_descend()
-                local count = stack_count_slider:GetValue()
-                local reference = get_unit_buyout_price() > 0 and get_unit_buyout_price() or get_unit_start_price()
-                if step > 0 and steps > 0 and reference > 0 and count > 0 then
-                    GameTooltip:AddLine(' ')
-                    local shown = min(count, steps)
-                    for i = 1, shown do
-                        if i <= 3 or i == shown then
-                            GameTooltip:AddDoubleLine('Auction ' .. i, money.to_string(descended_price(reference, i, step, steps), nil, true), 1, 1, 1, 1, 1, 1)
+                local plan, why = descend_plan()
+                GameTooltip:AddLine(' ')
+                if not plan then
+                    GameTooltip:AddLine('To post: ' .. why .. '.', 1, .5, .5)
+                else
+                    for i = 1, plan.steps do
+                        if i <= 3 or i == plan.steps then
+                            GameTooltip:AddDoubleLine('Auction ' .. i, money.to_string(descended_price(plan.reference, i, plan.step, plan.steps), nil, true), 1, 1, 1, 1, 1, 1)
                         elseif i == 4 then
                             GameTooltip:AddLine('...', 1, 1, 1)
                         end
                     end
-                    if count > steps then
-                        GameTooltip:AddDoubleLine('Auctions ' .. (steps + 1) .. ' to ' .. count, money.to_string(descended_price(reference, steps, step, steps), nil, true), 1, 1, 1, 1, 1, 1)
+                    if plan.rest > 0 then
+                        GameTooltip:AddDoubleLine('Then ' .. plan.rest .. ' more at', money.to_string(plan.target, nil, true), 1, 1, 1, 1, 1, 1)
                     end
+                    GameTooltip:AddDoubleLine('Step', money.to_string(plan.step, nil, true), .7, .7, .7, .7, .7, .7)
                 end
             end
             GameTooltip:AddLine('Turns itself off after a reload.', .6, .6, .6)
             GameTooltip:Show()
         end
         local function hide_tip() GameTooltip:Hide() end
+        local function hover(f) f:SetScript('OnEnter', explain) f:SetScript('OnLeave', hide_tip) end
 
         local checkbox = gui.checkbox(row)
         checkbox:SetPoint('LEFT', 0, 0)
@@ -235,58 +238,66 @@ function aux.handle.INIT_UI()
             descending = this:GetChecked() and true or false
             refresh = true
         end)
-        checkbox:SetScript('OnEnter', explain)
-        checkbox:SetScript('OnLeave', hide_tip)
+        hover(checkbox)
         descend_checkbox = checkbox
 
-        local label = gui.label(row, gui.font_size.small)
-        label:SetPoint('LEFT', checkbox, 'RIGHT', 2, 0)
-        label:SetText('Step down')
+        local function label(text, anchor, gap)
+            local l = gui.label(row, gui.font_size.small)
+            l:SetPoint('LEFT', anchor, 'RIGHT', gap, 0)
+            l:SetText(text)
+            return l
+        end
+        local function number_box(anchor, field)
+            local box = gui.editbox(row)
+            box:SetPoint('LEFT', anchor, 'RIGHT', 7, 0)
+            box:SetWidth(24)
+            box:SetHeight(22)
+            box:SetAlignment('CENTER')
+            box:SetNumeric(true)
+            box:SetMaxLetters(3)
+            box.change = function()
+                if this.focused then
+                    if field == 'steps' then set_descend(nil, this:GetNumber(), nil) else set_descend(nil, nil, this:GetNumber()) end
+                end
+                refresh = true
+            end
+            box.enter = function() this:ClearFocus() end
+            box.focus_loss = function() refresh = true end
+            hover(box)
+            return box
+        end
 
-        local step_box = gui.editbox(row)
-        step_box:SetPoint('LEFT', label, 'RIGHT', 4, 0)
-        step_box:SetWidth(46)
-        step_box:SetHeight(22)
-        step_box:SetAlignment('RIGHT')
-        step_box.formatter = function() return money.to_string((get_descend()), true) end
-        step_box.change = function()
+        local to = label('To', checkbox, 2)
+
+        local target_box = gui.editbox(row)
+        target_box:SetPoint('LEFT', to, 'RIGHT', 7, 0)
+        target_box:SetWidth(46)
+        target_box:SetHeight(22)
+        target_box:SetAlignment('RIGHT')
+        target_box.formatter = function() return money.to_string((get_descend()), true) end
+        target_box.change = function()
             if this.focused then
                 local amount = money.from_string(this:GetText())
-                if amount then set_descend(aux.round(amount), nil) end
+                if amount then set_descend(aux.round(amount), nil, nil) end
             end
             refresh = true
         end
-        step_box.enter = function() this:ClearFocus() end
-        step_box.focus_loss = function()
+        target_box.enter = function() this:ClearFocus() end
+        target_box.focus_loss = function()
             this:SetText(money.to_string((get_descend()), true, nil, nil, true))
             refresh = true
         end
-        step_box:SetScript('OnTabPressed', function() descend_steps_input:SetFocus() end)
-        step_box:SetScript('OnEnter', explain)
-        step_box:SetScript('OnLeave', hide_tip)
-        descend_step_input = step_box
+        hover(target_box)
+        descend_target_input = target_box
 
-        local times = gui.label(row, gui.font_size.small)
-        times:SetPoint('LEFT', step_box, 'RIGHT', 7, 0)
-        times:SetText('x')
-
-        local steps_box = gui.editbox(row)
-        steps_box:SetPoint('LEFT', times, 'RIGHT', 7, 0)
-        steps_box:SetWidth(24)
-        steps_box:SetHeight(22)
-        steps_box:SetAlignment('CENTER')
-        steps_box:SetNumeric(true)
-        steps_box:SetMaxLetters(3)
-        steps_box.change = function()
-            if this.focused then set_descend(nil, this:GetNumber()) end
-            refresh = true
-        end
-        steps_box.enter = function() this:ClearFocus() end
-        steps_box.focus_loss = function() refresh = true end
-        steps_box:SetScript('OnTabPressed', function() descend_step_input:SetFocus() end)
-        steps_box:SetScript('OnEnter', explain)
-        steps_box:SetScript('OnLeave', hide_tip)
+        local steps_box = number_box(label('in', target_box, 7), 'steps')
         descend_steps_input = steps_box
+        local rest_box = number_box(label('+', steps_box, 7), 'rest')
+        descend_rest_input = rest_box
+
+        target_box:SetScript('OnTabPressed', function() steps_box:SetFocus() end)
+        steps_box:SetScript('OnTabPressed', function() if IsShiftKeyDown() then target_box:SetFocus() else rest_box:SetFocus() end end)
+        rest_box:SetScript('OnTabPressed', function() if IsShiftKeyDown() then steps_box:SetFocus() else target_box:SetFocus() end end)
     end
     do
         item = gui.item(frame.parameters)
