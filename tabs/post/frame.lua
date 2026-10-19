@@ -193,9 +193,9 @@ function aux.handle.INIT_UI()
     do
         -- Descending post: [x] Step down [2.5s] x [10]
         local row = CreateFrame('Frame', nil, frame.parameters)
-        row:SetWidth(230)
+        row:SetWidth(180)
         row:SetHeight(25)
-        row:SetPoint('TOPLEFT', refresh_button, 'TOPRIGHT', 10, 0)
+        row:SetPoint('TOPLEFT', refresh_button, 'TOPRIGHT', 6, 0)
         descend_row = row
 
         local function explain()
@@ -240,12 +240,12 @@ function aux.handle.INIT_UI()
         descend_checkbox = checkbox
 
         local label = gui.label(row, gui.font_size.small)
-        label:SetPoint('LEFT', checkbox, 'RIGHT', 3, 0)
+        label:SetPoint('LEFT', checkbox, 'RIGHT', 2, 0)
         label:SetText('Step down')
 
         local step_box = gui.editbox(row)
-        step_box:SetPoint('LEFT', label, 'RIGHT', 6, 0)
-        step_box:SetWidth(70)
+        step_box:SetPoint('LEFT', label, 'RIGHT', 4, 0)
+        step_box:SetWidth(50)
         step_box:SetHeight(22)
         step_box:SetAlignment('RIGHT')
         step_box.formatter = function() return money.to_string((get_descend()), true) end
@@ -267,12 +267,12 @@ function aux.handle.INIT_UI()
         descend_step_input = step_box
 
         local times = gui.label(row, gui.font_size.small)
-        times:SetPoint('LEFT', step_box, 'RIGHT', 4, 0)
+        times:SetPoint('LEFT', step_box, 'RIGHT', 3, 0)
         times:SetText('x')
 
         local steps_box = gui.editbox(row)
-        steps_box:SetPoint('LEFT', times, 'RIGHT', 4, 0)
-        steps_box:SetWidth(30)
+        steps_box:SetPoint('LEFT', times, 'RIGHT', 3, 0)
+        steps_box:SetWidth(26)
         steps_box:SetHeight(22)
         steps_box:SetAlignment('CENTER')
         steps_box:SetNumeric(true)
