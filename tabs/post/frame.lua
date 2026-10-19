@@ -195,7 +195,7 @@ function aux.handle.INIT_UI()
         local row = CreateFrame('Frame', nil, frame.parameters)
         row:SetWidth(200)
         row:SetHeight(25)
-        row:SetPoint('TOPLEFT', refresh_button, 'TOPRIGHT', 6, 0)
+        row:SetPoint('TOPLEFT', refresh_button, 'TOPRIGHT', 4, 0)
         descend_row = row
 
         local function explain()
@@ -250,7 +250,7 @@ function aux.handle.INIT_UI()
         local function number_box(anchor, field)
             local box = gui.editbox(row)
             box:SetPoint('LEFT', anchor, 'RIGHT', 7, 0)
-            box:SetWidth(24)
+            box:SetWidth(22)
             box:SetHeight(22)
             box:SetAlignment('CENTER')
             box:SetNumeric(true)
@@ -271,7 +271,7 @@ function aux.handle.INIT_UI()
 
         local target_box = gui.editbox(row)
         target_box:SetPoint('LEFT', to, 'RIGHT', 7, 0)
-        target_box:SetWidth(46)
+        target_box:SetWidth(42)
         target_box:SetHeight(22)
         target_box:SetAlignment('RIGHT')
         target_box.formatter = function() return money.to_string((get_descend()), true) end
@@ -290,9 +290,9 @@ function aux.handle.INIT_UI()
         hover(target_box)
         descend_target_input = target_box
 
-        local steps_box = number_box(label('in', target_box, 7), 'steps')
+        local steps_box = number_box(label('in', target_box, 5), 'steps')
         descend_steps_input = steps_box
-        local rest_box = number_box(label('+', steps_box, 7), 'rest')
+        local rest_box = number_box(label('+', steps_box, 5), 'rest')
         descend_rest_input = rest_box
 
         target_box:SetScript('OnTabPressed', function() steps_box:SetFocus() end)
