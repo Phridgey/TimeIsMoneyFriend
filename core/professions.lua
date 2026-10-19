@@ -10,6 +10,8 @@ local professions, panel, body, toggle, recipe_filter, recipe_list, help
 local expanded = {}
 local trade_open, craft_open, scanning, pending_trade, pending_craft, pending_discovery
 local next_scan, ignore_updates_until = 0, 0
+-- number of rows each window had when last read; an update only re-reads when it changes
+local last_count = {}
 local worker = CreateFrame('Frame')
 
 local function item_name(link)
@@ -224,6 +226,7 @@ function scan_profession_inner(craft)
     if restore_slot then restore_slot() end
     if restore_subclass then restore_subclass() end
     if select_recipe and selection and selection > 0 and selection <= count() then select_recipe(selection) end
+    last_count[craft and 'craft' or 'trade'] = count()
     table.sort(recipes, function(a, b) return a.name < b.name end)
     -- An opening window can briefly report zero rows before its data arrives.
     if getn(recipes) > 0 then p.recipes = recipes end
@@ -251,15 +254,28 @@ local function schedule(kind, force)
     end)
 end
 
+-- Local change: the windows send update events after every craft (materials used up) and
+-- while you click around. Re-reading the whole list each time could switch the selected
+-- recipe back just as you pressed Create, and kept the game busy. Now the list is read
+-- when a window opens, and again only if its number of rows changes (a new recipe, or a
+-- window that opened empty and then filled in).
+local function rows_changed(craft)
+    local count = craft and GetNumCrafts or GetNumTradeSkills
+    _G.HaveMats_Bypass = true
+    local ok, n = pcall(count)
+    _G.HaveMats_Bypass = nil
+    return ok and n ~= last_count[craft and 'craft' or 'trade']
+end
+
 function aux.handle.LOAD()
     aux.character_data.professions = aux.character_data.professions or {}
     professions = aux.character_data.professions
     aux.event_listener('TRADE_SKILL_SHOW', function() trade_open = true; schedule('trade', true) end)
     aux.event_listener('TRADE_SKILL_CLOSE', function() trade_open = nil end)
-    aux.event_listener('TRADE_SKILL_UPDATE', function() if trade_open then schedule('trade') end end)
+    aux.event_listener('TRADE_SKILL_UPDATE', function() if trade_open and not scanning and rows_changed(false) then schedule('trade') end end)
     aux.event_listener('CRAFT_SHOW', function() craft_open = true; schedule('craft', true) end)
     aux.event_listener('CRAFT_CLOSE', function() craft_open = nil end)
-    aux.event_listener('CRAFT_UPDATE', function() if craft_open then schedule('craft') end end)
+    aux.event_listener('CRAFT_UPDATE', function() if craft_open and not scanning and rows_changed(true) then schedule('craft') end end)
     aux.event_listener('SPELLS_CHANGED', function() schedule('discovery') end)
 end
 

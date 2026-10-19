@@ -245,7 +245,7 @@ function aux.handle.INIT_UI()
 
         local step_box = gui.editbox(row)
         step_box:SetPoint('LEFT', label, 'RIGHT', 4, 0)
-        step_box:SetWidth(50)
+        step_box:SetWidth(46)
         step_box:SetHeight(22)
         step_box:SetAlignment('RIGHT')
         step_box.formatter = function() return money.to_string((get_descend()), true) end
@@ -267,12 +267,12 @@ function aux.handle.INIT_UI()
         descend_step_input = step_box
 
         local times = gui.label(row, gui.font_size.small)
-        times:SetPoint('LEFT', step_box, 'RIGHT', 3, 0)
+        times:SetPoint('LEFT', step_box, 'RIGHT', 7, 0)
         times:SetText('x')
 
         local steps_box = gui.editbox(row)
-        steps_box:SetPoint('LEFT', times, 'RIGHT', 3, 0)
-        steps_box:SetWidth(26)
+        steps_box:SetPoint('LEFT', times, 'RIGHT', 7, 0)
+        steps_box:SetWidth(24)
         steps_box:SetHeight(22)
         steps_box:SetAlignment('CENTER')
         steps_box:SetNumeric(true)
