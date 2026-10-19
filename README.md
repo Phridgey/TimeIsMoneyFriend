@@ -9,9 +9,10 @@ Command: **`/timf`** (all of aux's usual options).
 
 ## Install
 
-1. Click **Code → Download ZIP** and open the zip.
-2. Copy the folder inside (`Time-is-Money-Friend-main`) into `Interface\AddOns`.
-3. **Rename it to `TimeIsMoneyFriend`.** The game only loads it under that exact name.
+Install it like any addon from GitHub: the folder must be called `TimeIsMoneyFriend`
+inside `Interface\AddOns` (an addon installer that takes the GitHub link does this for
+you). With **Code → Download ZIP**, GitHub names the folder `TimeIsMoneyFriend-main`:
+rename it to `TimeIsMoneyFriend`.
 
 **Do not run it together with aux** – both use the same internal names and saved data,
 so disable aux first. To keep your aux price history and settings, copy
