@@ -48,9 +48,8 @@ do
 		did_login = true
 		for _, f in handlers_LOAD2 do f() end
 	end
-	-- Local change: aux is load-on-demand, loaded by its loader addon in Orgrimmar, Everlook,
-	-- Gadgetzan or when an auctioneer window opens. Loaded that late, the login events have
-	-- already gone by: run their steps now, then take over an auction window that is open.
+	-- Local change: steps for being loaded after login (from when this was load-on-demand;
+	-- unused now that it always loads, kept so a late LoadAddOn still works).
 	local function late_start()
 		variables_loaded()
 		player_login()

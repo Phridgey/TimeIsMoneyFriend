@@ -3,14 +3,13 @@
 ## OptionalDeps: ShaguTweaks
 ## Title: Time is Money, Friend
 ## Notes: Auction house addon (based on aux). /timf
-## SavedVariables: aux
-## LoadOnDemand: 1
-## Dependencies: TimeIsMoneyFriend_Loader
+## SavedVariables: aux, AuxStatsDB
 
 libs\package.lua
 libs\T.lua
 libs\ChatThrottleLib.lua
 
+core\recorder.lua
 aux-addon.lua
 util.lua
 control.lua

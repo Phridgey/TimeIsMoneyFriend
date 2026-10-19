@@ -19,10 +19,7 @@ function SlashCmdList.AUX(command)
 	if not command then return end
 	local arguments = aux.tokenize(command)
     local tooltip_settings = aux.character_data.tooltip
-    if arguments[1] == 'loading' then
-        -- local addition: when aux loads (kept by the loader addon, always loaded)
-        if AuxStats_ToggleLoading then AuxStats_ToggleLoading() end
-    elseif arguments[1] == 'scale' and tonumber(arguments[2]) then
+    if arguments[1] == 'scale' and tonumber(arguments[2]) then
     	local scale = tonumber(arguments[2])
 	    aux.frame:SetScale(scale)
 	    aux.account_data.scale = scale
@@ -95,7 +92,6 @@ function SlashCmdList.AUX(command)
 		end
 	else
 		aux.print('Usage:')
-		if AuxStats_LoadingText then aux.print('- loading [' .. aux.color.blue(AuxStats_LoadingText()) .. ']') end
 		aux.print('- scale [' .. aux.color.blue(aux.account_data.scale) .. ']')
 		aux.print('- ignore owner [' .. status(aux.account_data.ignore_owner) .. ']')
 		aux.print('- uc [' .. status(aux.account_data.undercut) .. ']')

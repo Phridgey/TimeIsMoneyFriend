@@ -99,6 +99,15 @@ local function firebloom_as_potion()
 	local pot, fire = price_2day(GREATER_FIRE_PROT), price_2day(ELEMENTAL_FIRE)
 	if pot and fire then return pot - fire - vendor(CRYSTAL_VIAL, 400) end
 end
+local function fire_as_potion()
+	local pot, bloom = price_2day(GREATER_FIRE_PROT), price_2day(FIREBLOOM)
+	if pot and bloom then return pot - bloom - vendor(CRYSTAL_VIAL, 400) end
+end
+-- what the materials for one potion cost: 1 Firebloom + 1 Elemental Fire + 1 Crystal Vial
+local function fire_potion_mats()
+	local bloom, fire = price_2day(FIREBLOOM), price_2day(ELEMENTAL_FIRE)
+	if bloom and fire then return bloom + fire + vendor(CRYSTAL_VIAL, 400) end
+end
 
 local function elixir_without(other)
 	local a, b = price_2day(DREAMSHARD_ELIXIR), price_2day(other)
@@ -210,6 +219,7 @@ local MATERIAL_CRAFTS = {
 		{'Brilliant Wizard Oil', firebloom_as_oil},
 		{'Gr. Fire Protection', firebloom_as_potion},
 	},
+	[ELEMENTAL_FIRE] = {{'Gr. Fire Protection', fire_as_potion}},
 	[SMALL_DREAM_SHARD] = {
 		{'Dreamshard Elixir', function() return elixir_without(DREAM_DUST) end},
 		{'Dreamtonic', function() return price_2day(DREAMTONIC) end},
@@ -219,8 +229,20 @@ local MATERIAL_CRAFTS = {
 		{'3 Dreamtonics', function() local t = price_2day(DREAMTONIC) return t and 3 * t end},
 	},
 }
+-- crafted products: on the product's own tooltip, what its materials cost and how much
+-- more the product sells for (same line format: materials -> gain from crafting)
+local PRODUCTS = {
+	[GREATER_FIRE_PROT] = {'Craft from Firebloom + Elemental Fire: ', fire_potion_mats},
+}
+
 function M.material_lines(item_id)
 	local lines = {}
+	local product = PRODUCTS[item_id]
+	if product then
+		local cost, own = product[2](), price_2day(item_id)
+		tinsert(lines, {label = product[1], value = cost, own = cost, diff = cost and own and own - cost})
+		return lines
+	end
 	local crafts = MATERIAL_CRAFTS[item_id]
 	if not crafts then return lines end
 	local own = price_2day(item_id)

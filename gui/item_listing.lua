@@ -5,7 +5,9 @@ local aux = require 'aux'
 local info = require 'aux.util.info'
 local gui = require 'aux.gui'
 
-local ROW_HEIGHT = 39
+-- Local change: compact rows (half the original 39) so about twice as many items fit
+local ROW_HEIGHT = 20
+local ICON_SCALE = .5
 
 function M:render()
 
@@ -87,8 +89,14 @@ function M.new(parent, on_click, selected)
 
 		row.item = gui.item(row)
 		row.item:SetScale(.9)
+		row.item:SetHeight(ROW_HEIGHT / .9)
 		row.item:SetPoint('LEFT', 2.5, 0)
 		row.item:SetPoint('RIGHT', -2.5, 0)
+		-- half-size icon; the name and count sit on the icon button, so their text is
+		-- doubled to stay the same size on screen
+		row.item.button:SetScale(ICON_SCALE)
+		row.item.name:SetFont(gui.font, gui.font_size.medium / ICON_SCALE * .9)
+		row.item.count:SetTextHeight(13 / ICON_SCALE)
 		row.item.button:SetScript('OnEnter', function()
 			info.set_tooltip(row.item_record.itemstring, this, 'ANCHOR_RIGHT')
 		end)
