@@ -7,7 +7,7 @@
     e  expired     an auction came back unsold
     c  cancelled   an auction you cancelled came back
     l  lost        the deposit of an auction that came back unsold (expired or cancelled)
-    i  traded in   gold another player gave you in a trade (item name = that player)
+    i  traded in   gold another player gave you in a trade (no names are kept)
     o  traded out  gold you gave another player in a trade
   AuxStatsDB.events holds "time;kind;count;copper;item name" strings.
   (Plain file, not an aux module; it was a separate loader addon before.)
@@ -175,14 +175,13 @@ local function TradeNote()
   if not trade then return end
   trade.mine = GetPlayerTradeMoney and GetPlayerTradeMoney() or trade.mine
   trade.theirs = GetTargetTradeMoney and GetTargetTradeMoney() or trade.theirs
-  trade.who = UnitName("NPC") or trade.who
 end
 local function TradeDone()
   local t = trade
   trade = nil
   if not t or not db then return end
-  if (t.theirs or 0) > 0 then Add("i", t.who, 1, t.theirs) end
-  if (t.mine or 0) > 0 then Add("o", t.who, 1, t.mine) end
+  if (t.theirs or 0) > 0 then Add("i", "Trade", 1, t.theirs) end
+  if (t.mine or 0) > 0 then Add("o", "Trade", 1, t.mine) end
 end
 
 ------------------------------------------------------------------------------
