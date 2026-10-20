@@ -7,6 +7,8 @@
     e  expired     an auction came back unsold
     c  cancelled   an auction you cancelled came back
     l  lost        the deposit of an auction that came back unsold (expired or cancelled)
+    i  traded in   gold another player gave you in a trade (item name = that player)
+    o  traded out  gold you gave another player in a trade
   AuxStatsDB.events holds "time;kind;count;copper;item name" strings.
   (Plain file, not an aux module; it was a separate loader addon before.)
 ]]
@@ -165,10 +167,30 @@ for _, fname in ipairs({ "TakeInboxMoney", "TakeInboxItem", "AutoLootMailItem" }
 end
 
 ------------------------------------------------------------------------------
+-- trades: the gold on each side, noted while the window is open and recorded when the
+-- trade goes through ("Trade complete.", or the purse changing by exactly that amount)
+------------------------------------------------------------------------------
+local trade = nil
+local function TradeNote()
+  if not trade then return end
+  trade.mine = GetPlayerTradeMoney and GetPlayerTradeMoney() or trade.mine
+  trade.theirs = GetTargetTradeMoney and GetTargetTradeMoney() or trade.theirs
+  trade.who = UnitName("NPC") or trade.who
+end
+local function TradeDone()
+  local t = trade
+  trade = nil
+  if not t or not db then return end
+  if (t.theirs or 0) > 0 then Add("i", t.who, 1, t.theirs) end
+  if (t.mine or 0) > 0 then Add("o", t.who, 1, t.mine) end
+end
+
+------------------------------------------------------------------------------
 -- events
 ------------------------------------------------------------------------------
 local f = CreateFrame("Frame")
-for _, e in ipairs({ "VARIABLES_LOADED", "CHAT_MSG_SYSTEM", "PLAYER_MONEY", "MAIL_INBOX_UPDATE", "MAIL_SHOW", "MAIL_CLOSED" }) do
+for _, e in ipairs({ "VARIABLES_LOADED", "CHAT_MSG_SYSTEM", "PLAYER_MONEY", "MAIL_INBOX_UPDATE", "MAIL_SHOW", "MAIL_CLOSED",
+    "TRADE_SHOW", "TRADE_MONEY_CHANGED", "TRADE_ACCEPT_UPDATE", "TRADE_CLOSED", "UI_INFO_MESSAGE" }) do
   f:RegisterEvent(e)
 end
 f:SetScript("OnEvent", function()
@@ -195,7 +217,28 @@ f:SetScript("OnEvent", function()
   elseif event == "MAIL_INBOX_UPDATE" or event == "MAIL_SHOW" or event == "MAIL_CLOSED" then
     -- the inbox changed: positions may now hold other mails
     for k in pairs(read) do read[k] = nil end
+  elseif event == "TRADE_SHOW" then
+    trade = { mine = 0, theirs = 0, money = GetMoney() }
+    TradeNote()
+  elseif event == "TRADE_MONEY_CHANGED" or event == "TRADE_ACCEPT_UPDATE" then
+    TradeNote()
+  elseif event == "UI_INFO_MESSAGE" then
+    if trade and ERR_TRADE_COMPLETE and arg1 == ERR_TRADE_COMPLETE then TradeDone() end
+  elseif event == "TRADE_CLOSED" then
+    -- no "Trade complete." seen: count it only if the purse changed by the traded gold
+    local t = trade
+    if t then
+      t.closed = GetTime()
+      local delta = (t.theirs or 0) - (t.mine or 0)
+      if delta ~= 0 and GetMoney() - t.money == delta then TradeDone() end
+    end
   elseif event == "PLAYER_MONEY" then
+    -- the purse can change just after the trade window closes
+    local t = trade
+    if t and t.closed and GetTime() - t.closed < 5 then
+      local delta = (t.theirs or 0) - (t.mine or 0)
+      if delta ~= 0 and GetMoney() - t.money == delta then TradeDone() end
+    end
     local p = waitingDeposit
     if p and db then
       waitingDeposit = nil

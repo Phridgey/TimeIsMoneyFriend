@@ -9,13 +9,17 @@ local money = require 'aux.util.money'
 
 local tab = aux.tab 'Ledger'
 
--- kind: b bought, d deposit, r deposit returned, s sold, e expired, c cancelled, l deposit lost
+-- kind: b bought, d deposit, r deposit returned, s sold, e expired, c cancelled, l deposit lost,
+-- i gold received in a trade, o gold given in a trade
 -- field: g gold, n item count, c number of auctions
 M.SERIES = {
 	{key = 'spent',    kind = 'b', field = 'g', label = 'Spent buying',      gold = true,  color = {.95, .35, .35}, on = true},
 	-- deposits on auctions that came back unsold: the deposit cost that is actually spent
 	{key = 'lost',     kind = 'l', field = 'g', label = 'Deposits lost',     gold = true,  color = {.95, .62, .2},  on = true},
 	{key = 'earned',   kind = 's', field = 'g', label = 'Gold from sales',   gold = true,  color = {.35, .85, .4},  on = true},
+	-- gold handed over in player trades (tips, payments); count = number of trades
+	{key = 'trade_in', kind = 'i', field = 'g', label = 'Gold from trades',  gold = true,  color = {.95, .85, .3},  on = true},
+	{key = 'trade_out', kind = 'o', field = 'g', label = 'Gold given in trades', gold = true, color = {.75, .45, .95}, on = true},
 	{key = 'bought',   kind = 'b', field = 'n', label = 'Items bought',      color = {.45, .62, 1}},
 	{key = 'sold',     kind = 's', field = 'c', label = 'Auctions sold',     color = {.3, .85, .85}},
 	{key = 'expired',  kind = 'e', field = 'c', label = 'Auctions expired',  color = {.65, .65, .65}},
@@ -173,7 +177,8 @@ function aux.handle.INIT_UI()
 	checks = {}
 	for i, s in ipairs(SERIES) do
 		local cb = gui.checkbox(frame)
-		cb:SetPoint('TOPLEFT', aux.frame.content, 'TOPLEFT', 4 + (i - 1) * 124, -32)
+		-- two rows of four
+		cb:SetPoint('TOPLEFT', aux.frame.content, 'TOPLEFT', 4 + math.mod(i - 1, 4) * 186, -32 - floor((i - 1) / 4) * 22)
 		local text = cb:CreateFontString(nil, 'OVERLAY')
 		text:SetFont(gui.font, 12)
 		text:SetPoint('LEFT', cb, 'RIGHT', 2, 0)
@@ -189,7 +194,7 @@ function aux.handle.INIT_UI()
 	end
 
 	graph = gui.panel(frame)
-	graph:SetPoint('TOPLEFT', aux.frame.content, 'TOPLEFT', 0, -56)
+	graph:SetPoint('TOPLEFT', aux.frame.content, 'TOPLEFT', 0, -78)
 	graph:SetPoint('BOTTOMRIGHT', aux.frame.content, 'BOTTOMRIGHT', 0, 0)
 	canvas_ = canvas(graph)
 
@@ -297,10 +302,10 @@ function M.draw()
 	for i = 1, n do
 		for key, v in pairs(data[i]) do t[key] = (t[key] or 0) + v end
 	end
-	local net = (t.earned or 0) - (t.spent or 0) - (t.lost or 0)
-	totals:SetText(format('Last %d days:  spent %s   deposits lost %s   from sales %s   net %s%s',
-		n, gold_text(t.spent), gold_text(t.lost),
-		gold_text(t.earned), net < 0 and '-' or '', gold_text(math.abs(net))))
+	local net = (t.earned or 0) + (t.trade_in or 0) - (t.spent or 0) - (t.lost or 0) - (t.trade_out or 0)
+	totals:SetText(format('Last %d days:  spent %s   deposits lost %s   sales %s   trades +%s -%s   net %s%s',
+		n, gold_text(t.spent), gold_text(t.lost), gold_text(t.earned),
+		gold_text(t.trade_in), gold_text(t.trade_out), net < 0 and '-' or '', gold_text(math.abs(net))))
 end
 
 function M.hover_update()

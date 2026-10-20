@@ -22,8 +22,8 @@ same folder (with the game closed).
 ## What is different from aux
 
 **Ledger tab** – daily bars of gold spent buying, deposits lost on unsold auctions, gold
-from sales, items bought, auctions sold and expired, with a toggle for each, 7/14/30/90
-day ranges and a net total.
+from sales, gold received and given in player trades (tips, payments), items bought,
+auctions sold and expired, with a toggle for each, 7/14/30/90 day ranges and a net total.
 
 **Trades tab** – every item you traded, and groups such as *Level 51-59 green armour*;
 tick them to graph the lowest auction house price per day with your own purchase and
