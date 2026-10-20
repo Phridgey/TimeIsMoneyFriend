@@ -239,6 +239,9 @@ function aux.handle.INIT_UI()
         btn:SetScript('OnClick', function()
             while tremove(current_search().records) do end
             current_search().table:SetDatabase()
+            -- also empty the search box
+            search_box:SetText('')
+            search_box:ClearFocus()
         end)
     end
     do
