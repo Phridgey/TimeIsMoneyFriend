@@ -18,8 +18,8 @@ M.SERIES = {
 	{key = 'lost',     kind = 'l', field = 'g', label = 'Deposits lost',     gold = true,  color = {.95, .62, .2},  on = true},
 	{key = 'earned',   kind = 's', field = 'g', label = 'Gold from sales',   gold = true,  color = {.35, .85, .4},  on = true},
 	-- gold handed over in player trades (tips, payments); count = number of trades
-	{key = 'trade_in', kind = 'i', field = 'g', label = 'Gold from trades',  gold = true,  color = {.95, .85, .3},  on = true},
-	{key = 'trade_out', kind = 'o', field = 'g', label = 'Gold given in trades', gold = true, color = {.75, .45, .95}, on = true},
+	{key = 'trade_in', kind = 'i', field = 'g', label = 'Trade income',      gold = true,  color = {.95, .85, .3},  on = true},
+	{key = 'trade_out', kind = 'o', field = 'g', label = 'Trade payments', gold = true, color = {.75, .45, .95}, on = true},
 	{key = 'bought',   kind = 'b', field = 'n', label = 'Items bought',      color = {.45, .62, 1}},
 	{key = 'sold',     kind = 's', field = 'c', label = 'Auctions sold',     color = {.3, .85, .85}},
 	{key = 'expired',  kind = 'e', field = 'c', label = 'Auctions expired',  color = {.65, .65, .65}},
