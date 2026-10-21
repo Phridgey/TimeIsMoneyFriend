@@ -357,10 +357,49 @@ function price_update()
         end
         start_price_percentage:SetText(historical_value and gui.percentage_historical(aux.round(get_unit_start_price() / historical_value * 100)) or '---')
         buyout_price_percentage:SetText(historical_value and gui.percentage_historical(aux.round(get_unit_buyout_price() / historical_value * 100)) or '---')
+        -- Local addition: a buyout far below the usual price shows in red
+        if unit_buyout_price_input.overlay then
+            if price_too_low() then
+                unit_buyout_price_input.overlay:SetTextColor(1, .3, .3)
+            else
+                unit_buyout_price_input.overlay:SetTextColor(aux.color.text.enabled())
+            end
+        end
+    end
+end
+
+-- Local addition: low-price guard. A buyout under LOW_PRICE of the item's usual price
+-- (aux's value from recent days) is usually a lowball listing that the undercut followed
+-- down; posting it asks for a confirmation first.
+local LOW_PRICE = .75
+function price_too_low()
+    if not selected_item then return end
+    local value = history.value(selected_item.key)
+    local buyout = get_unit_buyout_price()
+    if value and value > 0 and buyout > 0 and buyout < LOW_PRICE * value then
+        return buyout, value
     end
 end
 
 function post_auctions()
+	-- descending post sets its own prices on purpose: no guard there
+	if selected_item and not descending then
+		local buyout, value = price_too_low()
+		if buyout then
+			StaticPopupDialogs.TIMF_LOW_PRICE = StaticPopupDialogs.TIMF_LOW_PRICE or {
+				button1 = YES, button2 = NO, timeout = 0, whileDead = 1, hideOnEscape = 1,
+				OnAccept = function() do_post_auctions() end,
+			}
+			StaticPopupDialogs.TIMF_LOW_PRICE.text = format('Post %s at %s each?\n\nThat is %d%%%% of its usual price (%s): someone may have listed it very low.',
+				selected_item.name, money.to_string(buyout, nil, true), aux.round(buyout / value * 100), money.to_string(value, nil, true))
+			StaticPopup_Show('TIMF_LOW_PRICE')
+			return
+		end
+	end
+	return do_post_auctions()
+end
+
+function do_post_auctions()
 	if selected_item then
         local unit_start_price = get_unit_start_price()
         local unit_buyout_price = get_unit_buyout_price()
