@@ -27,7 +27,7 @@ vendor spending (repairs, reagents), items bought, auctions sold and expired, wi
 for each, 7/14/30/90 day ranges and a net total. **`/timf ledger`** opens the Ledger and
 Trades tabs anywhere, away from the auction house (type it again to close).
 
-**Trades tab** – every item you traded, and groups such as *Level 51-59 green armour*;
+**Trades tab** – every item you traded, and groups such as *Level 56-60 green armour*;
 tick them to graph the lowest auction house price per day with your own purchase and
 sale prices and the quantities bought and sold.
 

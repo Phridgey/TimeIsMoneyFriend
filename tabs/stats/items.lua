@@ -24,8 +24,10 @@ local OTHER = {name = 'Other green gear', other = true}
 local GROUPS = {
 	{name = 'Level 41-45 green armour', quality = 2, min = 41, max = 45, class = 'Armor'},
 	{name = 'Level 41-45 green weapons', quality = 2, min = 41, max = 45, class = 'Weapon'},
-	{name = 'Level 51-59 green armour', quality = 2, min = 51, max = 59, class = 'Armor'},
-	{name = 'Level 51-60 green weapons', quality = 2, min = 51, max = 60, class = 'Weapon'},
+	{name = 'Level 51-55 green armour', quality = 2, min = 51, max = 55, class = 'Armor'},
+	{name = 'Level 51-55 green weapons', quality = 2, min = 51, max = 55, class = 'Weapon'},
+	{name = 'Level 56-60 green armour', quality = 2, min = 56, max = 60, class = 'Armor'},
+	{name = 'Level 56-60 green weapons', quality = 2, min = 56, max = 60, class = 'Weapon'},
 }
 
 -- item name -> its details (quality, level, class), looked up once
