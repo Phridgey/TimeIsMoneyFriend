@@ -13,10 +13,10 @@ local tab = aux.tab 'Ledger'
 -- i gold received in a trade, o gold given in a trade, v vendor sales, w vendor spending
 -- field: g gold, n item count, c number of auctions
 M.SERIES = {
-	{key = 'spent',    kind = 'b', field = 'g', label = 'Spent buying',      gold = true,  color = {.95, .35, .35}, on = true},
+	{key = 'spent',    kind = 'b', field = 'g', label = 'AH spending',       gold = true,  color = {.95, .35, .35}, on = true},
 	-- deposits on auctions that came back unsold: the deposit cost that is actually spent
 	{key = 'lost',     kind = 'l', field = 'g', label = 'Deposits lost',     gold = true,  color = {.95, .62, .2},  on = true},
-	{key = 'earned',   kind = 's', field = 'g', label = 'Gold from sales',   gold = true,  color = {.35, .85, .4},  on = true},
+	{key = 'earned',   kind = 's', field = 'g', label = 'AH sales',          gold = true,  color = {.35, .85, .4},  on = true},
 	-- gold handed over in player trades (tips, payments); count = number of trades
 	{key = 'trade_in', kind = 'i', field = 'g', label = 'Trade income',      gold = true,  color = {.95, .85, .3},  on = true},
 	{key = 'trade_out', kind = 'o', field = 'g', label = 'Trade payments', gold = true, color = {.75, .45, .95}, on = true},
@@ -24,8 +24,6 @@ M.SERIES = {
 	{key = 'vendor_in', kind = 'v', field = 'g', label = 'Vendor sales',   gold = true, color = {.6, .8, .55}, on = true},
 	{key = 'vendor_out', kind = 'w', field = 'g', label = 'Vendor spending', gold = true, color = {.8, .55, .45}, on = true},
 	{key = 'bought',   kind = 'b', field = 'n', label = 'Items bought',      color = {.45, .62, 1}},
-	{key = 'sold',     kind = 's', field = 'c', label = 'Auctions sold',     color = {.3, .85, .85}},
-	{key = 'expired',  kind = 'e', field = 'c', label = 'Auctions expired',  color = {.65, .65, .65}},
 }
 M.RANGES = {7, 14, 30, 90}
 
@@ -191,9 +189,9 @@ function aux.handle.INIT_UI()
 	end
 	for i, s in ipairs(SERIES) do
 		local b = CreateFrame('Button', nil, frame)
-		-- two rows of five
-		b:SetPoint('TOPLEFT', aux.frame.content, 'TOPLEFT', 6 + math.mod(i - 1, 5) * 150, -34 - floor((i - 1) / 5) * 22)
-		b:SetWidth(144)
+		-- two rows of four
+		b:SetPoint('TOPLEFT', aux.frame.content, 'TOPLEFT', 6 + math.mod(i - 1, 4) * 186, -34 - floor((i - 1) / 4) * 22)
+		b:SetWidth(180)
 		b:SetHeight(16)
 		local edge = b:CreateTexture(nil, 'BACKGROUND')
 		edge:SetWidth(14)
@@ -335,7 +333,7 @@ function M.draw()
 	end
 	local net = (t.earned or 0) + (t.trade_in or 0) + (t.vendor_in or 0)
 		- (t.spent or 0) - (t.lost or 0) - (t.trade_out or 0) - (t.vendor_out or 0)
-	totals:SetText(format('Last %d days:  spent %s   lost %s   sales %s   trades +%s -%s   vendor +%s -%s   net %s%s',
+	totals:SetText(format('Last %d days:  AH spending %s   deposits lost %s   AH sales %s   trades +%s -%s   vendor +%s -%s   net %s%s',
 		n, gold_text(t.spent), gold_text(t.lost), gold_text(t.earned),
 		gold_text(t.trade_in), gold_text(t.trade_out), gold_text(t.vendor_in), gold_text(t.vendor_out),
 		net < 0 and '-' or '', gold_text(math.abs(net))))

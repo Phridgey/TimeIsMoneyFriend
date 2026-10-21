@@ -21,11 +21,11 @@ same folder (with the game closed).
 
 ## What is different from aux
 
-**Ledger tab** – daily bars of gold spent buying, deposits lost on unsold auctions, gold
-from sales, trade income and trade payments (gold handed over in player trades), vendor sales and
-vendor spending (repairs, reagents), items bought, auctions sold and expired, with a toggle
-for each, 7/14/30/90 day ranges and a net total. **`/timf ledger`** opens the Ledger and
-Trades tabs anywhere, away from the auction house (type it again to close).
+**Ledger tab** – daily bars of AH spending, deposits lost on unsold auctions, AH sales,
+trade income and trade payments (gold handed over in player trades), vendor sales and
+vendor spending (repairs, reagents) and items bought, each with a colour toggle, 7/14/30/90
+day ranges and a net total. **`/timf ledger`** opens the Ledger and Trades tabs anywhere,
+away from the auction house (type it again to close).
 
 **Trades tab** – every item you traded, and groups such as *Level 56-60 green armour*;
 tick them to graph the lowest auction house price per day with your own purchase and
