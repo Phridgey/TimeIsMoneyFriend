@@ -82,6 +82,24 @@ end
 
 -- the oldest posted auction of this item matching the sale (or with this count);
 -- returns its stack size and deposit (nil for notes made before deposits were kept)
+-- a sale known only from its mail (gold = sale price + returned deposit): the posted
+-- auction whose buyout plus deposit is exactly that gold, else the closest one
+local function TakePendingByMoney(name, money)
+  local best, bestD
+  for i = 1, table.getn(db.pending) do
+    local _, _, t, n, b, bo, dep, pname = string.find(db.pending[i], "^(%d+);(%d+);(%d+);(%d+);(%d+);(.*)$")
+    if t and pname == name then
+      local d = math.abs(tonumber(bo) + tonumber(dep) - money)
+      if not bestD or d < bestD then best, bestD = i, d end
+    end
+  end
+  if best then
+    local _, _, _, n, _, _, dep = string.find(db.pending[best], "^(%d+);(%d+);(%d+);(%d+);(%d+);")
+    table.remove(db.pending, best)
+    return tonumber(n), tonumber(dep)
+  end
+end
+
 local function TakePending(name, buyout, bid, count)
   for i = 1, table.getn(db.pending) do
     local _, _, t, n, b, bo, dep, pname = string.find(db.pending[i], "^(%d+);(%d+);(%d+);(%d+);(%d+);(.*)$")
@@ -110,7 +128,7 @@ end
 -- first call, often after the gold was already taken; the inbox only shrinks once the mail
 -- is deleted, so the next identical sale moving into position i still counts.
 local counted = {}
-local expiredPattern, cancelledPattern
+local expiredPattern, cancelledPattern, soldPattern
 local function SubjectPattern(fmt)
   if not fmt then return nil end
   return "^" .. string.gsub(string.gsub(fmt, "([%(%)%.%[%]%+%-%*%?%^%$])", "%%%1"), "%%s", "(.+)") .. "$"
@@ -124,7 +142,20 @@ local function ReadMail(i)
   if counted[i] == tag then return end
   local invoiceType, itemName, _, bid, buyout, deposit, cut
   if GetInboxInvoiceInfo then invoiceType, itemName, _, bid, buyout, deposit, cut = GetInboxInvoiceInfo(i) end
-  if invoiceType == "seller" then
+  soldPattern = soldPattern or SubjectPattern(AUCTION_SOLD_MAIL_SUBJECT or "Auction successful: %s")
+  local soldName
+  if not invoiceType and soldPattern and (money or 0) > 0 then
+    local _, _, nm = string.find(subject, soldPattern)
+    soldName = nm
+  end
+  if soldName then
+    -- the sale details have not arrived yet and an open-all addon may delete the mail
+    -- before they do: count it from the mail itself (its gold = price + deposit back)
+    counted[i] = tag
+    local n, dep = TakePendingByMoney(soldName, money)
+    Add("s", soldName, n or 0, money - (dep or 0))
+    if dep and dep > 0 then Add("r", soldName, n or 0, dep) end
+  elseif invoiceType == "seller" then
     counted[i] = tag
     local n = TakePending(itemName, buyout, bid)
     Add("s", itemName, n or 0, (bid or 0) - (cut or 0))
