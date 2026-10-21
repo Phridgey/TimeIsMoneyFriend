@@ -243,6 +243,52 @@ function handle.LOAD2()
 	frame:SetScale(account_data.scale)
 end
 
+-- Local addition: /timf ledger opens the window anywhere with only the Ledger and Trades
+-- tabs (they need no auction house). Visiting an auctioneer switches back to all tabs.
+do
+	local away = false
+	local AWAY_TABS = {Ledger = true, Trades = true}
+	local function set_away(on)
+		away = on
+		if not tabs then return end
+		local first
+		for i, tab in ipairs(tabs._tabs) do
+			local name = tab_info[i] and tab_info[i].name
+			if on and not AWAY_TABS[name] then tab:Hide() else tab:Show() end
+			if AWAY_TABS[name] and not first then first = tab end
+		end
+		-- the first of the two moves to where the first tab normally is
+		if first and first.id > 1 then
+			first:ClearAllPoints()
+			if on then
+				first:SetPoint('TOPLEFT', frame, 'BOTTOMLEFT', 4, gui.is_blizzard() and -8 or 1)
+			else
+				first:SetPoint('TOPLEFT', tabs._tabs[first.id - 1], 'TOPRIGHT', gui.is_blizzard() and 0 or 4, 0)
+			end
+		end
+		if blizzard_button then if on then blizzard_button:Hide() else blizzard_button:Show() end end
+	end
+	function M.is_away() return away end
+	function M.leave_away()
+		set_tab()
+		set_away(false)
+	end
+	local function ledger_index()
+		for i, t in ipairs(tab_info) do if t.name == 'Ledger' then return i end end
+	end
+	function M.open_ledger()
+		if not frame then return end
+		if frame:IsShown() then
+			if away then frame:Hide() return end   -- second /timf ledger closes it again
+			set_tab(ledger_index())                -- at the auction house: just switch tab
+			return
+		end
+		set_away(true)
+		frame:Show()
+		set_tab(ledger_index())
+	end
+end
+
 function AUCTION_HOUSE_SHOW()
 	if not frame or not AuctionFrame then return end
 	if _G.aux_late_ah then return end   -- this visit opened before aux was loaded: Blizzard window keeps it
@@ -251,6 +297,7 @@ function AUCTION_HOUSE_SHOW()
 	-- and aux stuck on (taking every right-click). auction_ui_loaded only runs once.
 	auction_ui_loaded()
 	AuctionFrame:Hide()
+	if is_away() then leave_away() end   -- the Ledger was open away from the auction house
 	frame:Show()
 	set_tab(1)
 end

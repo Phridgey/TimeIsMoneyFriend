@@ -9,6 +9,8 @@
     l  lost        the deposit of an auction that came back unsold (expired or cancelled)
     i  traded in   gold another player gave you in a trade (no names are kept)
     o  traded out  gold you gave another player in a trade
+    v  vendor in   gold from selling to a vendor (one line per visit)
+    w  vendor out  gold spent at a vendor: repairs, reagents, buyback (one line per visit)
   AuxStatsDB.events holds "time;kind;count;copper;item name" strings.
   (Plain file, not an aux module; it was a separate loader addon before.)
 ]]
@@ -214,11 +216,25 @@ local function TradeDone()
 end
 
 ------------------------------------------------------------------------------
+-- vendors: every change in your gold while a vendor window is open is a sale to it or
+-- a purchase / repair there; added up per visit and recorded when the window closes
+------------------------------------------------------------------------------
+local vendor = nil
+local function VendorDone()
+  local v = vendor
+  vendor = nil
+  if not v or not db then return end
+  if v.gain > 0 then Add("v", "Vendor", 1, v.gain) end
+  if v.spend > 0 then Add("w", "Vendor", 1, v.spend) end
+end
+
+------------------------------------------------------------------------------
 -- events
 ------------------------------------------------------------------------------
 local f = CreateFrame("Frame")
 for _, e in ipairs({ "VARIABLES_LOADED", "CHAT_MSG_SYSTEM", "PLAYER_MONEY", "MAIL_SHOW", "MAIL_CLOSED",
-    "TRADE_SHOW", "TRADE_MONEY_CHANGED", "TRADE_ACCEPT_UPDATE", "TRADE_CLOSED", "UI_INFO_MESSAGE" }) do
+    "TRADE_SHOW", "TRADE_MONEY_CHANGED", "TRADE_ACCEPT_UPDATE", "TRADE_CLOSED", "UI_INFO_MESSAGE",
+    "MERCHANT_SHOW", "MERCHANT_CLOSED" }) do
   f:RegisterEvent(e)
 end
 f:SetScript("OnEvent", function()
@@ -259,7 +275,20 @@ f:SetScript("OnEvent", function()
       local delta = (t.theirs or 0) - (t.mine or 0)
       if delta ~= 0 and GetMoney() - t.money == delta then TradeDone() end
     end
+  elseif event == "MERCHANT_SHOW" then
+    if vendor and vendor.closed then VendorDone() end
+    if not vendor then vendor = { money = GetMoney(), gain = 0, spend = 0 } end
+  elseif event == "MERCHANT_CLOSED" then
+    -- the gold for a last sale can arrive just after the window closes: wait 2 s
+    if vendor and not vendor.closed then vendor.closed = GetTime() end
   elseif event == "PLAYER_MONEY" then
+    local v = vendor
+    if v and not trade and (not v.closed or GetTime() - v.closed < 2) then
+      local m = GetMoney()
+      local d = m - v.money
+      if d > 0 then v.gain = v.gain + d elseif d < 0 then v.spend = v.spend - d end
+      v.money = m
+    end
     -- the purse can change just after the trade window closes
     local t = trade
     if t and t.closed and GetTime() - t.closed < 5 then
@@ -273,4 +302,7 @@ f:SetScript("OnEvent", function()
       Remember(p, deposit > 0 and deposit or 0)
     end
   end
+end)
+f:SetScript("OnUpdate", function()
+  if vendor and vendor.closed and GetTime() - vendor.closed >= 2 then VendorDone() end
 end)

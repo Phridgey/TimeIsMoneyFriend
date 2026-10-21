@@ -33,7 +33,11 @@ function handle.INIT_UI()
         frame:SetClampedToScreen(true)
         frame:CreateTitleRegion():SetAllPoints()
         frame:SetScript('OnShow', function() PlaySound('AuctionWindowOpen') end)
-        frame:SetScript('OnHide', function() PlaySound('AuctionWindowClose'); CloseAuctionHouse() end)
+        frame:SetScript('OnHide', function()
+            PlaySound('AuctionWindowClose')
+            -- opened with /timf ledger away from the auction house: just close the tabs
+            if is_away() then leave_away() else CloseAuctionHouse() end
+        end)
         frame.content = CreateFrame('Frame', nil, frame)
         frame.content:SetPoint('TOPLEFT', 4, -80)
         frame.content:SetPoint('BOTTOMRIGHT', -4, 35)
@@ -63,5 +67,6 @@ function handle.INIT_UI()
         btn:SetScript('OnClick',function()
             if AuctionFrame:IsVisible() then HideUIPanel(AuctionFrame) else ShowUIPanel(AuctionFrame) end
         end)
+        blizzard_button = btn
     end
 end
