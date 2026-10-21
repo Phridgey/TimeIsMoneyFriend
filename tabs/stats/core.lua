@@ -176,24 +176,52 @@ function aux.handle.INIT_UI()
 	range_buttons(frame, 4, function() return db().stats_days or 30 end,
 		function(n) db().stats_days = n draw() end)
 
-	-- one checkbox per series, coloured like its bars
+	-- one toggle per series: a small square filled with the colour of its bars when shown,
+	-- empty when hidden; the whole line (square and label) is clickable
 	checks = {}
+	local function paint(b)
+		local c = b.series.color
+		if b.on then
+			b.fill:SetTexture(c[1], c[2], c[3], 1)
+			b.text:SetTextColor(.9, .9, .9)
+		else
+			b.fill:SetTexture(.08, .08, .08, 1)
+			b.text:SetTextColor(.5, .5, .5)
+		end
+	end
 	for i, s in ipairs(SERIES) do
-		local cb = gui.checkbox(frame)
+		local b = CreateFrame('Button', nil, frame)
 		-- two rows of five
-		cb:SetPoint('TOPLEFT', aux.frame.content, 'TOPLEFT', 4 + math.mod(i - 1, 5) * 150, -32 - floor((i - 1) / 5) * 22)
-		local text = cb:CreateFontString(nil, 'OVERLAY')
+		b:SetPoint('TOPLEFT', aux.frame.content, 'TOPLEFT', 6 + math.mod(i - 1, 5) * 150, -34 - floor((i - 1) / 5) * 22)
+		b:SetWidth(144)
+		b:SetHeight(16)
+		local edge = b:CreateTexture(nil, 'BACKGROUND')
+		edge:SetWidth(14)
+		edge:SetHeight(14)
+		edge:SetPoint('LEFT', 0, 0)
+		edge:SetTexture(.45, .45, .45, 1)
+		local fill = b:CreateTexture(nil, 'ARTWORK')
+		fill:SetPoint('TOPLEFT', edge, 'TOPLEFT', 1, -1)
+		fill:SetPoint('BOTTOMRIGHT', edge, 'BOTTOMRIGHT', -1, 1)
+		b.fill = fill
+		local text = b:CreateFontString(nil, 'OVERLAY')
 		text:SetFont(gui.font, 12)
-		text:SetPoint('LEFT', cb, 'RIGHT', 2, 0)
+		text:SetPoint('LEFT', edge, 'RIGHT', 5, 0)
 		text:SetText(s.label)
-		text:SetTextColor(s.color[1], s.color[2], s.color[3])
-		cb.series = s
-		cb:SetChecked(shown(s))
-		cb:SetScript('OnClick', function()
-			db().show[this.series.key] = this:GetChecked() and true or false
+		b.text = text
+		local hl = b:CreateTexture(nil, 'HIGHLIGHT')
+		hl:SetAllPoints()
+		hl:SetTexture(1, 1, 1, .06)
+		b.series = s
+		b.on = shown(s)
+		paint(b)
+		b:SetScript('OnClick', function()
+			this.on = not this.on
+			db().show[this.series.key] = this.on and true or false
+			paint(this)
 			draw()
 		end)
-		tinsert(checks, cb)
+		tinsert(checks, b)
 	end
 
 	graph = gui.panel(frame)
