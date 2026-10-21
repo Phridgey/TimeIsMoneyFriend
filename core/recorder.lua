@@ -104,11 +104,12 @@ local function TakePending(name, buyout, bid, count)
 end
 
 -- mail: read an auction house mail just before it is taken
--- read[i]: the mail at position i was already counted; cleared whenever the inbox
--- changes. (It used to remember mails by sender, subject, money and time left, so
--- several identical sales, e.g. five Enchanted Leather at the same price arriving
--- in the same minute, were counted as one.)
-local read = {}
+-- counted[i]: the mail at position i that was already counted, as "what it says" plus the
+-- number of mails in the inbox. An open-all addon calls the mail functions several times
+-- on the same mail, and the sale details (invoice) only arrive from the server after the
+-- first call, often after the gold was already taken; the inbox only shrinks once the mail
+-- is deleted, so the next identical sale moving into position i still counts.
+local counted = {}
 local expiredPattern, cancelledPattern
 local function SubjectPattern(fmt)
   if not fmt then return nil end
@@ -119,19 +120,17 @@ local function ReadMail(i)
   if not db or not i then return end
   local _, _, sender, subject, money, _, daysLeft = GetInboxHeaderInfo(i)
   if not subject then return end
-  if read[i] then return end
+  local tag = (sender or "") .. "|" .. subject .. "|" .. string.format("%.5f", daysLeft or 0) .. "#" .. (GetInboxNumItems and GetInboxNumItems() or 0)
+  if counted[i] == tag then return end
   local invoiceType, itemName, _, bid, buyout, deposit, cut
   if GetInboxInvoiceInfo then invoiceType, itemName, _, bid, buyout, deposit, cut = GetInboxInvoiceInfo(i) end
   if invoiceType == "seller" then
-    -- money already taken from this mail: nothing new to count
-    if not money or money <= 0 then return end
-    read[i] = true
+    counted[i] = tag
     local n = TakePending(itemName, buyout, bid)
     Add("s", itemName, n or 0, (bid or 0) - (cut or 0))
     if deposit and deposit > 0 then Add("r", itemName, n or 0, deposit) end
   elseif invoiceType == "buyer" then
-    if not GetInboxItem(i) then return end
-    read[i] = true
+    counted[i] = tag
     -- buyouts were counted when bought; this is a bid you won
     if not ((buyout or 0) > 0 and (bid or 0) >= buyout) then
       local _, _, count = GetInboxItem(i)
@@ -144,9 +143,8 @@ local function ReadMail(i)
     if expiredPattern and string.find(subject, expiredPattern) then kind = "e"
     elseif cancelledPattern and string.find(subject, cancelledPattern) then kind = "c" end
     if kind then
+      counted[i] = tag
       local name, _, count = GetInboxItem(i)
-      if not name then return end   -- item already taken
-      read[i] = true
       name = name or string.gsub(subject, "^[^:]*:%s*", "")
       local _, deposit = TakePending(name, nil, nil, count)
       Add(kind, name, count or 1, 0)
@@ -188,7 +186,7 @@ end
 -- events
 ------------------------------------------------------------------------------
 local f = CreateFrame("Frame")
-for _, e in ipairs({ "VARIABLES_LOADED", "CHAT_MSG_SYSTEM", "PLAYER_MONEY", "MAIL_INBOX_UPDATE", "MAIL_SHOW", "MAIL_CLOSED",
+for _, e in ipairs({ "VARIABLES_LOADED", "CHAT_MSG_SYSTEM", "PLAYER_MONEY", "MAIL_SHOW", "MAIL_CLOSED",
     "TRADE_SHOW", "TRADE_MONEY_CHANGED", "TRADE_ACCEPT_UPDATE", "TRADE_CLOSED", "UI_INFO_MESSAGE" }) do
   f:RegisterEvent(e)
 end
@@ -213,9 +211,8 @@ f:SetScript("OnEvent", function()
     elseif arg1 == ERR_AUCTION_STARTED then
       Posted()
     end
-  elseif event == "MAIL_INBOX_UPDATE" or event == "MAIL_SHOW" or event == "MAIL_CLOSED" then
-    -- the inbox changed: positions may now hold other mails
-    for k in pairs(read) do read[k] = nil end
+  elseif event == "MAIL_SHOW" or event == "MAIL_CLOSED" then
+    for k in pairs(counted) do counted[k] = nil end
   elseif event == "TRADE_SHOW" then
     trade = { mine = 0, theirs = 0, money = GetMoney() }
     TradeNote()
