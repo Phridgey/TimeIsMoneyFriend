@@ -13,18 +13,19 @@ local tab = aux.tab 'Ledger'
 -- i gold received in a trade, o gold given in a trade, v vendor sales, w vendor spending
 -- field: g gold, n item count, c number of auctions
 M.SERIES = {
-	{key = 'spent',    kind = 'b', field = 'g', label = 'AH spending',       gold = true,  color = {.95, .35, .35}, on = true},
+	{key = 'spent',      kind = 'b', field = 'g', label = 'AH Spending',     gold = true, color = {.95, .35, .35}, on = true},
+	{key = 'earned',     kind = 's', field = 'g', label = 'AH Sales',        gold = true, color = {.35, .85, .4},  on = true},
+	-- gold handed over in player trades (tips, payments)
+	{key = 'trade_in',   kind = 'i', field = 'g', label = 'Trade Income',    gold = true, color = {.95, .85, .3},  on = true},
+	{key = 'trade_out',  kind = 'o', field = 'g', label = 'Trade Payments',  gold = true, color = {.75, .45, .95}, on = true},
 	-- deposits on auctions that came back unsold: the deposit cost that is actually spent
-	{key = 'lost',     kind = 'l', field = 'g', label = 'Deposits lost',     gold = true,  color = {.95, .62, .2},  on = true},
-	{key = 'earned',   kind = 's', field = 'g', label = 'AH sales',          gold = true,  color = {.35, .85, .4},  on = true},
-	-- gold handed over in player trades (tips, payments); count = number of trades
-	{key = 'trade_in', kind = 'i', field = 'g', label = 'Trade income',      gold = true,  color = {.95, .85, .3},  on = true},
-	{key = 'trade_out', kind = 'o', field = 'g', label = 'Trade payments', gold = true, color = {.75, .45, .95}, on = true},
+	{key = 'lost',       kind = 'l', field = 'g', label = 'Deposits Lost',   gold = true, color = {.95, .62, .2},  on = true},
 	-- vendor visits: gold from selling, and gold spent there (repairs, reagents, buyback)
-	{key = 'vendor_in', kind = 'v', field = 'g', label = 'Vendor sales',   gold = true, color = {.6, .8, .55}, on = true},
-	{key = 'vendor_out', kind = 'w', field = 'g', label = 'Vendor spending', gold = true, color = {.8, .55, .45}, on = true},
-	{key = 'bought',   kind = 'b', field = 'n', label = 'Items bought',      color = {.45, .62, 1}},
+	{key = 'vendor_in',  kind = 'v', field = 'g', label = 'Vendor Sales',    gold = true, color = {.6, .8, .55},   on = true},
+	{key = 'vendor_out', kind = 'w', field = 'g', label = 'Vendor Spending', gold = true, color = {.8, .55, .45},  on = true},
+	{key = 'bought',     kind = 'b', field = 'n', label = 'Items Bought',    color = {.45, .62, 1}},
 }
+
 M.RANGES = {7, 14, 30, 90}
 
 function M.db()
@@ -137,7 +138,7 @@ function M.range_buttons(parent, anchor_x, get, set)
 		local btn = gui.checkbutton(parent, gui.font_size.small)
 		gui.set_size(btn, 58, 20)
 		btn:SetPoint('TOPLEFT', aux.frame.content, 'TOPLEFT', anchor_x + (i - 1) * 62, -6)
-		btn:SetText(n .. ' days')
+		btn:SetText(n .. ' Days')
 		btn.days = n
 		btn:SetScript('OnClick', function()
 			set(this.days)
@@ -321,7 +322,7 @@ function M.draw()
 		end
 	end
 	if k == 0 then
-		c:label(LEFT + w / 2, BOTTOM + h / 2, 'Tick something above to graph it.', 'CENTER')
+		c:label(LEFT + w / 2, BOTTOM + h / 2, 'Click a colour above to graph it.', 'CENTER')
 	elseif getn(events()) == 0 then
 		c:label(LEFT + w / 2, BOTTOM + h / 2, 'Nothing recorded yet: buying, posting and collecting your auction mail fills this in.', 'CENTER')
 	end
@@ -333,9 +334,9 @@ function M.draw()
 	end
 	local net = (t.earned or 0) + (t.trade_in or 0) + (t.vendor_in or 0)
 		- (t.spent or 0) - (t.lost or 0) - (t.trade_out or 0) - (t.vendor_out or 0)
-	totals:SetText(format('Last %d days:  AH spending %s   deposits lost %s   AH sales %s   trades +%s -%s   vendor +%s -%s   net %s%s',
-		n, gold_text(t.spent), gold_text(t.lost), gold_text(t.earned),
-		gold_text(t.trade_in), gold_text(t.trade_out), gold_text(t.vendor_in), gold_text(t.vendor_out),
+	totals:SetText(format('Last %d Days:  AH Spending %s   AH Sales %s   Trades +%s -%s   Deposits Lost %s   Vendor +%s -%s   Net %s%s',
+		n, gold_text(t.spent), gold_text(t.earned),
+		gold_text(t.trade_in), gold_text(t.trade_out), gold_text(t.lost), gold_text(t.vendor_in), gold_text(t.vendor_out),
 		net < 0 and '-' or '', gold_text(math.abs(net))))
 end
 
