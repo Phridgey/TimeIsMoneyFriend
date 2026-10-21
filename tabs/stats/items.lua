@@ -364,7 +364,9 @@ function M.hover_update()
 	if i < 1 or i > n or getn(view.sel) == 0 then
 		GameTooltip:Hide() hover.day = nil if hover.mark then hover.mark:Hide() end return
 	end
-	if hover.day == i then return end
+	-- same day as before: nothing to redraw, unless another addon (bag tooltips refreshing
+	-- on a bag update) took the tooltip meanwhile
+	if hover.day == i and GameTooltip:IsOwned(hover) then return end
 	hover.day = i
 	if not hover.mark then
 		hover.mark = hover:CreateTexture(nil, 'BACKGROUND')
