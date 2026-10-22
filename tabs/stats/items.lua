@@ -23,11 +23,11 @@ local OTHER = {name = 'Other green gear', other = true}
 
 local GROUPS = {
 	{name = 'Level 41-45 green armour', quality = 2, min = 41, max = 45, class = 'Armor'},
-	{name = 'Level 41-45 green weapons', quality = 2, min = 41, max = 45, class = 'Weapon'},
+	{name = 'Level 41-45 green weapons and shields', quality = 2, min = 41, max = 45, class = 'Weapon'},
 	{name = 'Level 51-55 green armour', quality = 2, min = 51, max = 55, class = 'Armor'},
-	{name = 'Level 51-55 green weapons', quality = 2, min = 51, max = 55, class = 'Weapon'},
+	{name = 'Level 51-55 green weapons and shields', quality = 2, min = 51, max = 55, class = 'Weapon'},
 	{name = 'Level 56-60 green armour', quality = 2, min = 56, max = 60, class = 'Armor'},
-	{name = 'Level 56-60 green weapons', quality = 2, min = 56, max = 60, class = 'Weapon'},
+	{name = 'Level 56-60 green weapons and shields', quality = 2, min = 56, max = 60, class = 'Weapon'},
 }
 
 -- item name -> its details (quality, level, class), looked up once
@@ -44,12 +44,15 @@ local function item_details(name)
 		if id then
 			local it = cache.item_info(id)
 			if it and it.quality then
-				d = {quality = tonumber(it.quality), level = tonumber(it.level), class = it.class}
+				d = {quality = tonumber(it.quality), level = tonumber(it.level), class = it.class, slot = it.slot}
 			else
-				local _, _, quality, level, class = GetItemInfo('item:' .. id .. ':0:0:0')
-				if quality then d = {quality = tonumber(quality), level = tonumber(level), class = class} end
+				local _, _, quality, level, class, _, _, slot = GetItemInfo('item:' .. id .. ':0:0:0')
+				if quality then d = {quality = tonumber(quality), level = tonumber(level), class = class, slot = slot} end
 			end
 		end
+		-- shields are filed as armour, but go with weapons here (they are priced and
+		-- disenchant like weapons)
+		if d and d.slot == 'INVTYPE_SHIELD' then d.class = 'Weapon' end
 		details[name] = d or false
 	end
 	return details[name]
