@@ -300,6 +300,7 @@ function AUCTION_HOUSE_SHOW()
 	if is_away() then leave_away() end   -- the Ledger was open away from the auction house
 	frame:Show()
 	set_tab(1)
+	purchase_summary.update_display()   -- purchases from earlier visits this session
 end
 
 do

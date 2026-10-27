@@ -219,9 +219,10 @@ function M.hide()
 end
 
 -- Set up handlers - use direct function references instead of M.
+-- Closing the auction house only hides the summary: the purchases are kept until a
+-- reload or relog, and the summary shows again on the next visit.
 function aux.handle.CLOSE()
 	if purchase_summary_frame then
 		purchase_summary_frame:Hide()
 	end
-	T.wipe(purchase_summaries)
 end
