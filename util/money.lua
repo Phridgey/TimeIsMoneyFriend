@@ -58,7 +58,16 @@ function M.to_string2(money, exact, color)
 	return str
 end
 
+local reported_missing
 function M.to_string(money, pad, trim, color, no_color)
+	if type(money) ~= 'number' then
+		-- a caller passed no price: show a dash instead of erroring, and note once where it came from
+		if not reported_missing then
+			reported_missing = true
+			aux.account_data.missing_price_trace = date('%Y-%m-%d %H:%M:%S') .. '\n' .. (debugstack(2) or '')
+		end
+		return '---'
+	end
 	local is_negative = money < 0
 	money = abs(money)
 	local gold, silver, copper = to_gsc(money)
