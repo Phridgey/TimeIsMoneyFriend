@@ -559,4 +559,13 @@ function aux.handle.INIT_UI()
             listing:SetHandler(k, v)
         end
     end
+    -- Local addition: Disenchant scan button, left of the Blizzard UI / Close buttons
+    do
+        local btn = gui.button(frame, gui.font_size.small)
+        btn:SetPoint('BOTTOMRIGHT', aux.frame, 'BOTTOMRIGHT', -(5 + 60 + 5 + (gui.is_blizzard() and 80 or 60) + 5), 5)
+        gui.set_size(btn, 70, 24)
+        btn:SetText('DE Scan')
+        btn:SetFrameLevel(btn:GetFrameLevel() + 2)
+        btn:SetScript('OnClick', function() require('aux.descan').start() end)
+    end
 end

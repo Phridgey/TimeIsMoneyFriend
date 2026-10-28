@@ -78,6 +78,8 @@ function SlashCmdList.AUX(command)
 		aux.print('sharing ' .. status(aux.account_data.sharing))
     elseif arguments[1] == 'ledger' then
         aux.open_ledger()
+    elseif arguments[1] == 'descan' then
+        require('aux.descan').slash(arguments)
     elseif arguments[1] == 'theme' and (arguments[2] == nil or (arguments[2] == 'modern' or arguments[2] == 'blizzard')) then
         aux.account_data.theme = arguments[2] or (aux.account_data.theme == 'blizzard' and 'modern' or 'blizzard')
         aux.print('theme ' .. aux.color.blue(aux.account_data.theme))
@@ -95,6 +97,7 @@ function SlashCmdList.AUX(command)
 	else
 		aux.print('Usage:')
 		aux.print('- ledger (opens the Ledger and Trades tabs anywhere)')
+		aux.print('- descan (disenchant scan prices; descan <name> <price> to change one)')
 		aux.print('- scale [' .. aux.color.blue(aux.account_data.scale) .. ']')
 		aux.print('- ignore owner [' .. status(aux.account_data.ignore_owner) .. ']')
 		aux.print('- uc [' .. status(aux.account_data.undercut) .. ']')
