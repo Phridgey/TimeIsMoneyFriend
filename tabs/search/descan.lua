@@ -304,13 +304,13 @@ local function create_window()
 	buy_button = gui.button(window, gui.font_size.small)
 	buy_button:SetPoint('RIGHT', close, 'LEFT', -5, 0)
 	gui.set_size(buy_button, 80, 24)
-	buy_button:SetScript('OnClick', function() M.buy() end)
+	buy_button:SetScript('OnClick', function() buy() end)
 
 	rescan_button = gui.button(window, gui.font_size.small)
 	rescan_button:SetPoint('RIGHT', buy_button, 'LEFT', -5, 0)
 	gui.set_size(rescan_button, 60, 24)
 	rescan_button:SetText('Rescan')
-	rescan_button:SetScript('OnClick', function() M.start() end)
+	rescan_button:SetScript('OnClick', function() start() end)
 end
 
 ------------------------------------------------------------------------------
@@ -412,7 +412,7 @@ function M.slash(arguments)
 		aux.print('Disenchant scan prices put back to the defaults.')
 		return
 	end
-	if key == 'scan' then return M.start() end
+	if key == 'scan' then return start() end
 	for i = 1, getn(GROUPS) do
 		local g = GROUPS[i]
 		if g.key == key then
