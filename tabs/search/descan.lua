@@ -3,11 +3,16 @@ module 'aux.descan'
 -- Local addition: Disenchant scan. One button searches the auction house for green and
 -- blue gear under set prices (per level band and kind), lists what it found in a window
 -- with every item ticked, and "Buy" buys the ticked ones. /timf descan changes the prices.
+--
+-- The game only accepts a purchase from a click, so Buy takes one auction per click: the
+-- next ticked auction is looked up in advance, the click buys it, and the one after that
+-- is looked up straight away.
 
 local aux = require 'aux'
 local gui = require 'aux.gui'
 local money = require 'aux.util.money'
 local scan = require 'aux.core.scan'
+local scan_util = require 'aux.util.scan'
 
 -- levels are required levels, as in the auction house's own level search
 local GROUPS = {
@@ -21,6 +26,8 @@ local GROUPS = {
 	{key = 'weapon41', label = '41-45 green weapons', quality = 2, min = 41, max = 45, kind = 'weapon', price = 32500},
 	{key = 'shield41', label = '41-45 green shields', quality = 2, min = 41, max = 45, kind = 'shield', price = 32500},
 }
+
+for i = 1, getn(GROUPS) do GROUPS[i].order = i end
 
 -- the searches sent to the auction house: weapons and armour (shields are armour) of
 -- green or better in the two level bands, so every auction is looked at once
@@ -69,24 +76,73 @@ local function group_of(a)
 end
 
 ------------------------------------------------------------------------------
--- the window
+-- state
 ------------------------------------------------------------------------------
 local ROWS, ROW_HEIGHT = 18, 20
-local found = {}      -- {record, group, checked, bought}
+local found = {}      -- {record, group, checked, bought, gone}
 local window, rows, status, buy_button, rescan_button
 local offset = 0
-local busy            -- 'scan' or 'buy' while working
+local scanning        -- the search is running
+local target          -- the ticked auction the next Buy click buys
+local target_index    -- its place on the auction house page, once found
+local finding         -- looking it up
+local bidding         -- a purchase is under way
+local generation = 0  -- each lookup's number: answers from an older one are ignored
+local bought_count = 0
+local note            -- a one-off message for the status line
 
-local function checked_total()
+local function wanted(f) return f.checked and not f.bought and not f.gone end
+
+local function ticked_total()
 	local n, total = 0, 0
 	for i = 1, getn(found) do
 		local f = found[i]
-		if f.checked and not f.bought then n = n + 1 total = total + f.record.buyout_price end
+		if wanted(f) then n = n + 1 total = total + f.record.buyout_price end
 	end
 	return n, total
 end
 
-local function update()
+local update   -- below
+
+local status_adapter = {
+	update_status = function() end,
+	set_text = function() end,
+}
+
+local function locate()
+	generation = generation + 1
+	local my = generation
+	target, target_index, finding = nil, nil, nil
+	for i = 1, getn(found) do
+		if wanted(found[i]) then target = found[i] break end
+	end
+	if not target then update() return end
+	finding = true
+	update()
+	local t = target
+	scan_util.find(t.record, status_adapter,
+		function()   -- stopped
+			if my ~= generation then return end
+			finding = nil
+			update()
+		end,
+		function()   -- not listed any more
+			if my ~= generation then return end
+			t.gone = true
+			return locate()
+		end,
+		function(index)
+			if my ~= generation then return end
+			finding = nil
+			target_index = index
+			update()
+		end)
+end
+
+------------------------------------------------------------------------------
+-- the window
+------------------------------------------------------------------------------
+update = function()
 	if not window then return end
 	local n = getn(found)
 	offset = max(0, min(offset, n - ROWS))
@@ -96,11 +152,13 @@ local function update()
 		if f then
 			local r = f.record
 			row.item = f
-			row.check:SetChecked(f.checked and not f.bought)
-			if f.bought then row.check:Disable() else row.check:Enable() end
+			row.check:SetChecked(wanted(f))
+			if f.bought or f.gone then row.check:Disable() else row.check:Enable() end
 			row.icon:SetTexture(r.texture)
 			local color = ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[r.quality]
-			row.name:SetText((color and color.hex or '') .. r.name .. FONT_COLOR_CODE_CLOSE .. (f.bought and ' |cff40ff40(bought)|r' or ''))
+			local tag = f.bought and ' |cff40ff40(bought)|r' or f.gone and ' |cff888888(gone)|r'
+				or f == target and (target_index and ' |cffffd100<- next|r' or ' |cff888888(finding...)|r') or ''
+			row.name:SetText((color and color.hex or '') .. r.name .. FONT_COLOR_CODE_CLOSE .. tag)
 			row.level:SetText(r.level)
 			row.price:SetText(money.to_string(r.buyout_price, nil, true))
 			row.group:SetText(f.group.label)
@@ -110,17 +168,24 @@ local function update()
 			row:Hide()
 		end
 	end
-	local c, total = checked_total()
-	if busy == 'scan' then
+	local c, total = ticked_total()
+	if scanning then
 		buy_button:Disable()
-	elseif busy == 'buy' then
-		buy_button:Disable()
+		buy_button:SetText('Buy')
+	elseif target and target_index and not bidding then
+		buy_button:Enable()
+		buy_button:SetText(format('Buy (%d)', c))
 	else
-		if c > 0 then buy_button:Enable() else buy_button:Disable() end
-		status:SetText(format('%d found, %d ticked: %s', n, c, money.to_string(total, nil, true)))
+		buy_button:Disable()
+		buy_button:SetText(finding and 'Finding...' or bidding and 'Buying...' or 'Buy')
 	end
-	buy_button:SetText(format('Buy %d', c))
-	if busy then rescan_button:Disable() else rescan_button:Enable() end
+	if not scanning then
+		local text = format('%d found, %d ticked: %s', n, c, money.to_string(total, nil, true))
+		if bought_count > 0 then text = text .. format('  (bought %d)', bought_count) end
+		if note then text = note .. '  ' .. text end
+		status:SetText(text)
+	end
+	if scanning then rescan_button:Disable() else rescan_button:Enable() end
 end
 
 local function create_window()
@@ -128,7 +193,7 @@ local function create_window()
 	gui.set_window_style(window)
 	window:SetWidth(470)
 	window:SetHeight(ROWS * ROW_HEIGHT + 78)
-	window:SetPoint('TOPLEFT', aux.frame, 'TOPRIGHT', 6, 0)
+	window:SetPoint('TOPLEFT', aux.frame, 'TOPRIGHT', 6, -26)   -- below the Professions button
 	window:SetToplevel(true)
 	window:SetMovable(true)
 	window:EnableMouse(true)
@@ -141,7 +206,9 @@ local function create_window()
 		update()
 	end)
 	window:SetScript('OnHide', function()
-		if busy then scan.abort() end
+		if scanning or finding then scan.abort() end
+		generation = generation + 1
+		scanning, finding, target, target_index = nil, nil, nil, nil
 	end)
 	tinsert(UISpecialFrames, 'TIMFDisenchantScan')
 
@@ -163,7 +230,11 @@ local function create_window()
 		check:SetPoint('LEFT', 2, 0)
 		check:SetScript('OnClick', function()
 			local f = this:GetParent().item
-			if f and not f.bought then f.checked = this:GetChecked() and true or false end
+			if f and not f.bought and not f.gone then
+				f.checked = this:GetChecked() and true or false
+				if f == target and not f.checked then return locate() end
+				if not target and f.checked and not scanning then return locate() end
+			end
 			update()
 		end)
 		row.check = check
@@ -206,12 +277,14 @@ local function create_window()
 		row:SetScript('OnLeave', function() GameTooltip:Hide() end)
 		row:SetScript('OnClick', function()
 			local f = this.item
-			if not f or f.bought then return end
+			if not f or f.bought or f.gone then return end
 			if IsShiftKeyDown() and ChatFrameEditBox:IsVisible() then
 				ChatFrameEditBox:Insert(f.record.link)
 				return
 			end
 			f.checked = not f.checked
+			if f == target and not f.checked then return locate() end
+			if not target and f.checked and not scanning then return locate() end
 			update()
 		end)
 		rows[i] = row
@@ -219,7 +292,7 @@ local function create_window()
 
 	status = gui.label(window, gui.font_size.small)
 	status:SetPoint('BOTTOMLEFT', 10, 14)
-	status:SetWidth(200)
+	status:SetWidth(240)
 	status:SetJustifyH('LEFT')
 
 	local close = gui.button(window, gui.font_size.small)
@@ -230,12 +303,12 @@ local function create_window()
 
 	buy_button = gui.button(window, gui.font_size.small)
 	buy_button:SetPoint('RIGHT', close, 'LEFT', -5, 0)
-	gui.set_size(buy_button, 70, 24)
+	gui.set_size(buy_button, 80, 24)
 	buy_button:SetScript('OnClick', function() M.buy() end)
 
 	rescan_button = gui.button(window, gui.font_size.small)
 	rescan_button:SetPoint('RIGHT', buy_button, 'LEFT', -5, 0)
-	gui.set_size(rescan_button, 70, 24)
+	gui.set_size(rescan_button, 60, 24)
 	rescan_button:SetText('Rescan')
 	rescan_button:SetScript('OnClick', function() M.start() end)
 end
@@ -248,14 +321,20 @@ local function at_auction_house()
 end
 
 function M.start()
-	if busy then return end
+	if scanning then return end
 	if not at_auction_house() then aux.print('Disenchant scan: open the auction house first.') return end
 	if not window then create_window() end
+	-- the Professions panel sits in the same place
+	local professions = require 'aux.core.professions'
+	if professions.set_professions_open then professions.set_professions_open(false) end
 	window:Show()
 	for i = getn(found), 1, -1 do tremove(found, i) end
-	offset = 0
-	busy = 'scan'
+	offset, bought_count, note = 0, 0, nil
+	generation = generation + 1
+	target, target_index, finding, bidding = nil, nil, nil, nil
+	scanning = true
 	local query_no, page_no = 0, 0
+	status:SetText('Scanning...')
 	scan.start{
 		type = 'list',
 		queries = queries(),
@@ -273,80 +352,49 @@ function M.start()
 		end,
 		on_page_scanned = function() update() end,
 		on_complete = function()
-			busy = nil
+			scanning = nil
 			table.sort(found, function(a, b)
-				if a.group ~= b.group then return a.group.key < b.group.key end
+				if a.group ~= b.group then return a.group.order < b.group.order end
 				return a.record.unit_buyout_price < b.record.unit_buyout_price
 			end)
-			update()
+			locate()
 		end,
 		on_abort = function()
-			busy = nil
+			scanning = nil
+			note = 'Scan stopped.'
 			update()
-			status:SetText('Scan stopped.')
 		end,
 	}
 	update()
 end
 
+-- one click, one auction: buy the one found, then look up the next
 function M.buy()
-	if busy then return end
+	if scanning or bidding or not target or not target_index or aux.bid_in_progress() then return end
 	if not at_auction_house() then aux.print('Disenchant scan: open the auction house first.') return end
-	-- how many of each listing to buy (identical auctions share a signature)
-	local wanted, left = {}, 0
-	for i = 1, getn(found) do
-		local f = found[i]
-		if f.checked and not f.bought then
-			local s = f.record.search_signature
-			wanted[s] = (wanted[s] or 0) + 1
-			left = left + 1
-		end
+	local f, index = target, target_index
+	if not scan_util.test(f.record, index) then return locate() end   -- the page changed: look again
+	if GetMoney() < f.record.buyout_price then
+		note = '|cffff4040Not enough gold.|r'
+		update()
+		return
 	end
-	if left == 0 then return end
-	busy = 'buy'
-	local bought = 0
-	status:SetText('Buying...')
-	local function mark(signature)
-		for i = 1, getn(found) do
-			local f = found[i]
-			if f.checked and not f.bought and f.record.search_signature == signature then
-				f.bought = true
-				return
-			end
-		end
-	end
-	scan.start{
-		type = 'list',
-		queries = queries(),
-		auto_buy_validator = function(record)
-			local s = record.search_signature
-			if (wanted[s] or 0) > 0 and GetMoney() >= record.buyout_price then
-				wanted[s] = wanted[s] - 1
-				left = left - 1
-				bought = bought + 1
-				mark(s)
-				status:SetText(format('Bought %d, %d to go...', bought, left))
-				update()
-				if left == 0 then scan.stop() end
-				return true
-			end
-		end,
-		on_complete = function()
-			busy = nil
-			update()
-			status:SetText(format('Bought %d.%s', bought, left > 0 and format(' %d no longer listed.', left) or ''))
-		end,
-		on_abort = function()
-			busy = nil
-			update()
-			status:SetText(format('Stopped: bought %d.', bought))
-		end,
-	}
+	bidding = true
+	note = nil
 	update()
+	aux.place_bid('list', index, f.record.buyout_price, function()
+		bidding = nil
+		f.bought = true
+		bought_count = bought_count + 1
+		locate()
+	end)
+	-- the purchase was not sent (it can only fail before sending when gold ran short):
+	-- let the next click try again
+	if not aux.bid_in_progress() and bidding and not f.bought then bidding = nil update() end
 end
 
 ------------------------------------------------------------------------------
--- /timf descan [group price | reset]
+-- /timf descan [name price | reset | scan]
 ------------------------------------------------------------------------------
 function M.slash(arguments)
 	local key, value = arguments[2] and strlower(arguments[2]), arguments[3]

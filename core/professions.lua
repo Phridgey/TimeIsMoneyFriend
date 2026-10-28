@@ -292,22 +292,30 @@ function aux.handle.INIT_UI()
     panel:EnableMouse(true)
     panel:SetScript('OnShow', refresh)
 
-    toggle = gui.button(panel, gui.font_size.medium)
-    toggle:SetPoint('TOPLEFT', 6, -4)
-    gui.set_size(toggle, 268, 26)
-    toggle:SetText('[-] Professions')
-    toggle:SetScript('OnClick', function()
-        if body:IsShown() then
-            body:Hide()
-            panel:SetHeight(34)
-            toggle:SetText('[+] Professions')
-        else
-            panel:SetHeight(447)
-            body:Show()
+    -- Local change: starts tucked away. Closed, only a small button shows beside the
+    -- auction house window (no empty bar); open, the full panel. Not remembered: it
+    -- starts closed at every login.
+    toggle = gui.button(search_tab.frame, gui.font_size.small)
+    toggle:SetPoint('TOPLEFT', panel, 'TOPLEFT', 0, 0)
+    toggle:SetFrameLevel(panel:GetFrameLevel() + 5)
+    local function set_open(open)
+        if open then
+            panel:Show()
+            toggle:ClearAllPoints()
+            toggle:SetPoint('TOPLEFT', panel, 'TOPLEFT', 6, -4)
+            gui.set_size(toggle, 268, 26)
             toggle:SetText('[-] Professions')
             refresh()
+        else
+            panel:Hide()
+            toggle:ClearAllPoints()
+            toggle:SetPoint('TOPLEFT', panel, 'TOPLEFT', 0, 0)
+            gui.set_size(toggle, 100, 22)
+            toggle:SetText('[+] Professions')
         end
-    end)
+    end
+    M.set_professions_open = set_open
+    toggle:SetScript('OnClick', function() set_open(not panel:IsShown()) end)
 
     body = CreateFrame('Frame', nil, panel)
     body:SetPoint('TOPLEFT', 8, -38)
@@ -368,4 +376,5 @@ function aux.handle.INIT_UI()
     help:SetJustifyH('LEFT')
     help:SetJustifyV('TOP')
     help:SetText('Open each profession once to cache its recipes here.')
+    set_open(false)
 end
