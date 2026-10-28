@@ -187,7 +187,7 @@ function aux.handle.INIT_UI()
     do
         local btn = gui.button(frame, gui.font_size.large)
         btn:SetPoint('BOTTOMLEFT', aux.frame.content, 'TOPLEFT', 10, 8)
-        btn:SetWidth(243)
+        btn:SetWidth(181)   -- local change: four buttons share the row (was 243)
         btn:SetHeight(22)
         btn:SetText('Search Results')
         btn:SetScript('OnClick', function() set_subtab(RESULTS) end)
@@ -196,7 +196,7 @@ function aux.handle.INIT_UI()
     do
         local btn = gui.button(frame, gui.font_size.large)
         btn:SetPoint('TOPLEFT', search_results_button, 'TOPRIGHT', 5, 0)
-        btn:SetWidth(243)
+        btn:SetWidth(181)   -- local change: four buttons share the row (was 243)
         btn:SetHeight(22)
         btn:SetText('Saved Searches')
         btn:SetScript('OnClick', function() set_subtab(SAVED) end)
@@ -205,11 +205,21 @@ function aux.handle.INIT_UI()
     do
         local btn = gui.button(frame, gui.font_size.large)
         btn:SetPoint('TOPLEFT', saved_searches_button, 'TOPRIGHT', 5, 0)
-        btn:SetWidth(243)
+        btn:SetWidth(181)   -- local change: four buttons share the row (was 243)
         btn:SetHeight(22)
         btn:SetText('Filter Builder')
         btn:SetScript('OnClick', function() set_subtab(FILTER) end)
         new_filter_button = btn
+    end
+    do
+        -- Local addition: opens and closes the Professions panel beside the window
+        local btn = gui.button(frame, gui.font_size.large)
+        btn:SetPoint('TOPLEFT', new_filter_button, 'TOPRIGHT', 5, 0)
+        btn:SetWidth(181)
+        btn:SetHeight(22)
+        btn:SetText('Professions')
+        btn:SetScript('OnClick', function() require('aux.core.professions').toggle_professions() end)
+        M.professions_button = btn
     end
     do
         local frame = CreateFrame('Frame', nil, frame)

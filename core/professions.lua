@@ -292,30 +292,26 @@ function aux.handle.INIT_UI()
     panel:EnableMouse(true)
     panel:SetScript('OnShow', refresh)
 
-    -- Local change: starts tucked away. Closed, only a small button shows beside the
-    -- auction house window (no empty bar); open, the full panel. Not remembered: it
-    -- starts closed at every login.
-    toggle = gui.button(search_tab.frame, gui.font_size.small)
-    toggle:SetPoint('TOPLEFT', panel, 'TOPLEFT', 0, 0)
-    toggle:SetFrameLevel(panel:GetFrameLevel() + 5)
+    -- Local change: opened and closed from the Professions button on the Search tab's
+    -- row of buttons; starts closed at every login.
+    local title = gui.label(panel, gui.font_size.medium)
+    title:SetPoint('TOPLEFT', 10, -10)
+    title:SetText('Professions')
     local function set_open(open)
+        local btn = search_tab.professions_button
         if open then
+            -- the Disenchant scan window sits in the same place
+            if TIMFDisenchantScan and TIMFDisenchantScan:IsShown() then TIMFDisenchantScan:Hide() end
             panel:Show()
-            toggle:ClearAllPoints()
-            toggle:SetPoint('TOPLEFT', panel, 'TOPLEFT', 6, -4)
-            gui.set_size(toggle, 268, 26)
-            toggle:SetText('[-] Professions')
             refresh()
+            if btn then btn:LockHighlight() end
         else
             panel:Hide()
-            toggle:ClearAllPoints()
-            toggle:SetPoint('TOPLEFT', panel, 'TOPLEFT', 0, 0)
-            gui.set_size(toggle, 100, 22)
-            toggle:SetText('[+] Professions')
+            if btn then btn:UnlockHighlight() end
         end
     end
     M.set_professions_open = set_open
-    toggle:SetScript('OnClick', function() set_open(not panel:IsShown()) end)
+    M.toggle_professions = function() set_open(not panel:IsShown()) end
 
     body = CreateFrame('Frame', nil, panel)
     body:SetPoint('TOPLEFT', 8, -38)

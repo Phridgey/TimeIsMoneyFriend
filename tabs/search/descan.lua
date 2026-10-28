@@ -193,7 +193,7 @@ local function create_window()
 	gui.set_window_style(window)
 	window:SetWidth(470)
 	window:SetHeight(ROWS * ROW_HEIGHT + 78)
-	window:SetPoint('TOPLEFT', aux.frame, 'TOPRIGHT', 6, -26)   -- below the Professions button
+	window:SetPoint('TOPLEFT', aux.frame, 'TOPRIGHT', 6, 0)
 	window:SetToplevel(true)
 	window:SetMovable(true)
 	window:EnableMouse(true)
