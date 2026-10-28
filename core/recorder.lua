@@ -283,7 +283,9 @@ f:SetScript("OnEvent", function()
     if vendor and not vendor.closed then vendor.closed = GetTime() end
   elseif event == "PLAYER_MONEY" then
     local v = vendor
-    if v and not trade and (not v.closed or GetTime() - v.closed < 2) then
+    -- a trade window that closed more than 5 s ago no longer explains a change of gold
+    local trading = trade and (not trade.closed or GetTime() - trade.closed < 5)
+    if v and not trading and (not v.closed or GetTime() - v.closed < 2) then
       local m = GetMoney()
       local d = m - v.money
       if d > 0 then v.gain = v.gain + d elseif d < 0 then v.spend = v.spend - d end
@@ -305,4 +307,7 @@ f:SetScript("OnEvent", function()
 end)
 f:SetScript("OnUpdate", function()
   if vendor and vendor.closed and GetTime() - vendor.closed >= 2 then VendorDone() end
+  -- a cancelled trade was never cleared, and every vendor visit after it (sales and
+  -- repairs) went unrecorded until the next trade: drop it once it is over
+  if trade and trade.closed and GetTime() - trade.closed >= 5 then trade = nil end
 end)
