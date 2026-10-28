@@ -236,7 +236,9 @@ function aux.handle.INIT_UI()
 
 	totals = frame:CreateFontString(nil, 'OVERLAY')
 	totals:SetFont(gui.font, 13)
-	totals:SetPoint('TOPLEFT', aux.frame.content, 'BOTTOMLEFT', 4, -12)
+	-- two lines, kept clear of the Blizzard UI and Close buttons on the right
+	totals:SetPoint('TOPLEFT', aux.frame.content, 'BOTTOMLEFT', 4, -4)
+	totals:SetPoint('RIGHT', aux.frame, 'RIGHT', -160, 0)
 	totals:SetJustifyH('LEFT')
 end
 
@@ -334,10 +336,10 @@ function M.draw()
 	end
 	local net = (t.earned or 0) + (t.trade_in or 0) + (t.vendor_in or 0)
 		- (t.spent or 0) - (t.lost or 0) - (t.trade_out or 0) - (t.vendor_out or 0)
-	totals:SetText(format('Last %d Days:  AH Spending %s   AH Sales %s   Trades +%s -%s   Deposits Lost %s   Vendor +%s -%s   Net %s%s',
-		n, gold_text(t.spent), gold_text(t.earned),
-		gold_text(t.trade_in), gold_text(t.trade_out), gold_text(t.lost), gold_text(t.vendor_in), gold_text(t.vendor_out),
-		net < 0 and '-' or '', gold_text(math.abs(net))))
+	totals:SetText(format('Last %d Days:  AH Spending %s   AH Sales %s   Deposits Lost %s   Net %s%s\nTrades +%s -%s   Vendor +%s -%s',
+		n, gold_text(t.spent), gold_text(t.earned), gold_text(t.lost),
+		net < 0 and '-' or '', gold_text(math.abs(net)),
+		gold_text(t.trade_in), gold_text(t.trade_out), gold_text(t.vendor_in), gold_text(t.vendor_out)))
 end
 
 function M.hover_update()
