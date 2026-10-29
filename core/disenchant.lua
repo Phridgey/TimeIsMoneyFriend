@@ -75,6 +75,7 @@ end
 -- (vendor); Greater Fire Protection Potion = 1 Firebloom + 1 Elemental Fire + 1 Crystal Vial
 local FIREBLOOM, BRILLIANT_WIZARD_OIL, LARGE_BRILLIANT, IMBUED_VIAL = 4625, 20749, 14344, 18256
 local GREATER_FIRE_PROT, ELEMENTAL_FIRE = 13457, 7068
+local HEART_OF_FIRE = 7077   -- transmutes into 3 Elemental Fire
 local function vendor(id, fallback)
 	local _, buy = info.merchant_info(id)
 	return buy or fallback
@@ -220,6 +221,7 @@ local MATERIAL_CRAFTS = {
 		{'Gr. Fire Protection', firebloom_as_potion},
 	},
 	[ELEMENTAL_FIRE] = {{'Gr. Fire Protection', fire_as_potion}},
+	[HEART_OF_FIRE] = {{'3 Gr. Fire Protection', function() local e = fire_as_potion() return e and 3 * e end}},
 	[SMALL_DREAM_SHARD] = {
 		{'Dreamshard Elixir', function() return elixir_without(DREAM_DUST) end},
 		{'Dreamtonic', function() return price_2day(DREAMTONIC) end},
