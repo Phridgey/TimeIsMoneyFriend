@@ -18,7 +18,7 @@ local scan_util = require 'aux.util.scan'
 local GROUPS = {
 	{key = 'armor51',  label = '51-55 green armour',  quality = 2, min = 51, max = 55, kind = 'armor',  price = 20100},
 	{key = 'armor56',  label = '56-59 green armour',  quality = 2, min = 56, max = 59, kind = 'armor',  price = 32000},
-	{key = 'blue51',   label = '51-59 blues',         quality = 3, min = 51, max = 59, kind = 'any',    price = 21000},
+	{key = 'blue51',   label = '51-59 blues',         quality = 3, min = 51, max = 59, kind = 'any',    price = 22500},
 	{key = 'weapon51', label = '51-55 green weapons', quality = 2, min = 51, max = 55, kind = 'weapon', price = 50000},
 	{key = 'shield51', label = '51-55 green shields', quality = 2, min = 51, max = 55, kind = 'shield', price = 50000},
 	{key = 'weapon56', label = '56-60 green weapons', quality = 2, min = 56, max = 60, kind = 'weapon', price = 90000},
