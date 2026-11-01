@@ -192,6 +192,13 @@ end
 local function create_window()
 	window = CreateFrame('Frame', 'TIMFDisenchantScan', UIParent)
 	gui.set_window_style(window)
+	-- local change: a little more opaque than the standard window (about 20%)
+	local shade = window:CreateTexture(nil, 'BACKGROUND')
+	shade:SetPoint('TOPLEFT', 3, -3)
+	shade:SetPoint('BOTTOMRIGHT', -3, 3)
+	shade:SetTexture(0, 0, 0, .3)
+	-- above the auction house window and its neighbours
+	window:SetFrameStrata('DIALOG')
 	window:SetWidth(470)
 	window:SetHeight(ROWS * ROW_HEIGHT + 78)
 	window:SetPoint('TOPLEFT', aux.frame, 'TOPRIGHT', 6, 0)
@@ -329,6 +336,7 @@ function M.start()
 	local professions = require 'aux.core.professions'
 	if professions.set_professions_open then professions.set_professions_open(false) end
 	window:Show()
+	window:Raise()   -- to the front every time DE Scan is pressed
 	for i = getn(found), 1, -1 do tremove(found, i) end
 	offset, bought_count, note = 0, 0, nil
 	generation = generation + 1
