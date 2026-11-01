@@ -4,9 +4,12 @@ module 'aux.descan'
 -- blue gear under set prices (per level band and kind), lists what it found in a window
 -- with every item ticked, and "Buy" buys the ticked ones. /timf descan changes the prices.
 --
--- The game only accepts a purchase from a click, so Buy takes one auction per click: the
--- next ticked auction is looked up in advance, the click buys it, and the one after that
--- is looked up straight away.
+-- The game only accepts a purchase from a click, so Buy takes one auction per click.
+-- The scan stops on each page that has ticked auctions: they are on screen right then, so
+-- each click buys one at once with no second search. When none are left on that page
+-- (bought, unticked, or Next pressed) the scan carries on from the same page (buying
+-- moves later auctions up onto it). Auctions passed over with Next are looked up one by
+-- one after the scan, as before.
 
 local aux = require 'aux'
 local gui = require 'aux.gui'
@@ -84,6 +87,10 @@ local found = {}      -- {record, group, checked, bought, gone}
 local window, rows, status, buy_button, rescan_button
 local offset = 0
 local scanning        -- the search is running
+local paused          -- {qi, page}: the scan is stopped on this page for buying
+local pausing         -- set while the scan winds down to a pause
+local scan_gen = 0    -- each scan's number: callbacks from an older scan are ignored
+local unticked, passed = {}, {}   -- by auction signature, kept when a page is read again
 local target          -- the ticked auction the next Buy click buys
 local target_index    -- its place on the auction house page, once found
 local finding         -- looking it up
@@ -93,6 +100,9 @@ local bought_count = 0
 local note            -- a one-off message for the status line
 
 local function wanted(f) return f.checked and not f.bought and not f.gone end
+-- ticked auctions on the page the scan is stopped on
+local function on_page(f) return paused and f.qi == paused.qi and f.page == paused.page end
+local function buyable_here(f) return wanted(f) and not f.passed and on_page(f) end
 
 local function ticked_total()
 	local n, total = 0, 0
@@ -170,7 +180,7 @@ update = function()
 		end
 	end
 	local c, total = ticked_total()
-	if scanning then
+	if scanning and not paused then
 		buy_button:Disable()
 		buy_button:SetText('Buy')
 	elseif target and target_index and not bidding then
@@ -180,13 +190,23 @@ update = function()
 		buy_button:Disable()
 		buy_button:SetText(finding and 'Finding...' or bidding and 'Buying...' or 'Buy')
 	end
-	if not scanning then
+	if paused then
+		local here = 0
+		for i = 1, n do if buyable_here(found[i]) then here = here + 1 end end
+		status:SetText(format('Stopped on page %d of search %d: %d to buy here (Next skips them)', paused.page + 1, paused.qi, here))
+	elseif not scanning then
 		local text = format('%d found, %d ticked: %s', n, c, money.to_string(total, nil, true))
 		if bought_count > 0 then text = text .. format('  (bought %d)', bought_count) end
 		if note then text = note .. '  ' .. text end
 		status:SetText(text)
 	end
-	if scanning then rescan_button:Disable() else rescan_button:Enable() end
+	if paused then
+		rescan_button:SetText('Next')
+		rescan_button:Enable()
+	else
+		rescan_button:SetText('Rescan')
+		if scanning then rescan_button:Disable() else rescan_button:Enable() end
+	end
 end
 
 local function create_window()
@@ -216,7 +236,8 @@ local function create_window()
 	window:SetScript('OnHide', function()
 		if scanning or finding then scan.abort() end
 		generation = generation + 1
-		scanning, finding, target, target_index = nil, nil, nil, nil
+		scan_gen = scan_gen + 1
+		scanning, finding, target, target_index, paused, pausing = nil, nil, nil, nil, nil, nil
 	end)
 	tinsert(UISpecialFrames, 'TIMFDisenchantScan')
 
@@ -240,8 +261,8 @@ local function create_window()
 			local f = this:GetParent().item
 			if f and not f.bought and not f.gone then
 				f.checked = this:GetChecked() and true or false
-				if f == target and not f.checked then return locate() end
-				if not target and f.checked and not scanning then return locate() end
+				unticked[f.record.search_signature] = not f.checked or nil
+				return choose()
 			end
 			update()
 		end)
@@ -291,9 +312,8 @@ local function create_window()
 				return
 			end
 			f.checked = not f.checked
-			if f == target and not f.checked then return locate() end
-			if not target and f.checked and not scanning then return locate() end
-			update()
+			unticked[f.record.search_signature] = not f.checked or nil
+			return choose()
 		end)
 		rows[i] = row
 	end
@@ -318,7 +338,9 @@ local function create_window()
 	rescan_button:SetPoint('RIGHT', buy_button, 'LEFT', -5, 0)
 	gui.set_size(rescan_button, 60, 24)
 	rescan_button:SetText('Rescan')
-	rescan_button:SetScript('OnClick', function() start() end)
+	rescan_button:SetScript('OnClick', function()
+		if paused then next_page() else start() end
+	end)
 end
 
 ------------------------------------------------------------------------------
@@ -328,39 +350,114 @@ local function at_auction_house()
 	return AuctionFrame and aux.frame and aux.frame:IsShown() and not aux.is_away()
 end
 
-function M.start()
-	if scanning then return end
-	if not at_auction_house() then aux.print('Disenchant scan: open the auction house first.') return end
-	if not window then create_window() end
-	-- the Professions panel sits in the same place
-	local professions = require 'aux.core.professions'
-	if professions.set_professions_open then professions.set_professions_open(false) end
-	window:Show()
-	window:Raise()   -- to the front every time DE Scan is pressed
-	for i = getn(found), 1, -1 do tremove(found, i) end
-	offset, bought_count, note = 0, 0, nil
-	generation = generation + 1
-	target, target_index, finding, bidding = nil, nil, nil, nil
-	scanning = true
-	local query_no, page_no = 0, 0
-	status:SetText('Scanning...')
+-- where the auction is on the page now on screen (buying moves later ones up)
+local function index_on_page(record)
+	local n = GetNumAuctionItems('list')
+	for i = 1, n do
+		if scan_util.test(record, i) then return i end
+	end
+end
+
+local run_scan
+
+-- pick the next auction to buy: one on the stopped page, else carry on scanning, else
+-- (scan over) look the next passed-over one up
+function M.choose()
+	if paused then
+		generation = generation + 1
+		target, target_index, finding = nil, nil, nil
+		for i = 1, getn(found) do
+			local f = found[i]
+			if buyable_here(f) then
+				local index = index_on_page(f.record)
+				if index then
+					target, target_index = f, index
+					break
+				end
+				f.gone = true   -- bought by someone else meanwhile
+			end
+		end
+		if target then update() return end
+		-- nothing left to buy here: read this page again and carry on
+		local at = paused
+		paused = nil
+		return run_scan(at.qi, at.page)
+	end
+	if scanning then update() return end
+	if target and target_index and wanted(target) then update() return end
+	return locate()
+end
+
+-- Next: leave the rest of this page for later and carry on scanning
+function M.next_page()
+	if not paused then return end
+	for i = 1, getn(found) do
+		local f = found[i]
+		if buyable_here(f) then f.passed = true passed[f.record.search_signature] = true end
+	end
+	target, target_index = nil, nil
+	return choose()
+end
+
+run_scan = function(qi, page)
+	scan_gen = scan_gen + 1
+	local my = scan_gen
+	-- auctions read earlier from this page (not bought) are read again below
+	for i = getn(found), 1, -1 do
+		local f = found[i]
+		if f.qi == qi and f.page == page and not f.bought then tremove(found, i) end
+	end
+	local list = queries()
+	for k = 1, qi - 1 do tremove(list, 1) end
+	list[1].blizzard_query.first_page = page
+	scanning, pausing = true, nil
+	local query_no, page_no = qi - 1, 0
+	local current_page
+	update()
 	scan.start{
 		type = 'list',
-		queries = queries(),
+		queries = list,
 		on_start_query = function()
+			if my ~= scan_gen then return end
 			query_no = query_no + 1
 			page_no = 0
 		end,
 		on_page_loaded = function(_, total_pages)
+			if my ~= scan_gen then return end
 			page_no = page_no + 1
 			status:SetText(format('Scanning %d / %d (page %d / %d)', query_no, getn(SEARCHES), page_no, max(total_pages, 1)))
 		end,
 		on_auction = function(record)
+			if my ~= scan_gen then return end
+			current_page = record.page
 			local g = group_of(record)
-			if g then tinsert(found, {record = record, group = g, checked = true}) end
+			if g then
+				local sig = record.search_signature
+				tinsert(found, {record = record, group = g, qi = query_no, page = record.page,
+					checked = not unticked[sig], passed = passed[sig]})
+			end
 		end,
-		on_page_scanned = function() update() end,
+		on_page_scanned = function()
+			if my ~= scan_gen or pausing then return end
+			local here = 0
+			for i = 1, getn(found) do
+				local f = found[i]
+				if wanted(f) and not f.passed and f.qi == query_no and f.page == current_page then here = here + 1 end
+			end
+			if here > 0 then
+				-- stop on this page: its auctions are on screen and can be bought at once
+				pausing = {qi = query_no, page = current_page}
+				scan.stop()
+				paused = pausing
+				scan_gen = scan_gen + 1   -- the stopped scan's last callbacks are ignored
+				scanning = true
+				choose()
+				return
+			end
+			update()
+		end,
 		on_complete = function()
+			if my ~= scan_gen then return end
 			scanning = nil
 			table.sort(found, function(a, b)
 				if a.group ~= b.group then return a.group.order < b.group.order end
@@ -369,20 +466,39 @@ function M.start()
 			locate()
 		end,
 		on_abort = function()
-			scanning = nil
+			if my ~= scan_gen then return end
+			scanning, paused = nil, nil
 			note = 'Scan stopped.'
 			update()
 		end,
 	}
-	update()
+end
+
+function M.start()
+	if scanning and not paused then return end
+	if not at_auction_house() then aux.print('Disenchant scan: open the auction house first.') return end
+	if not window then create_window() end
+	-- the Professions panel sits in the same place
+	local professions = require 'aux.core.professions'
+	if professions.set_professions_open then professions.set_professions_open(false) end
+	window:Show()
+	window:Raise()   -- to the front every time DE Scan is pressed
+	for i = getn(found), 1, -1 do tremove(found, i) end
+	for k in pairs(unticked) do unticked[k] = nil end
+	for k in pairs(passed) do passed[k] = nil end
+	offset, bought_count, note = 0, 0, nil
+	generation = generation + 1
+	target, target_index, finding, bidding, paused = nil, nil, nil, nil, nil
+	status:SetText('Scanning...')
+	run_scan(1, 0)
 end
 
 -- one click, one auction: buy the one found, then look up the next
 function M.buy()
-	if scanning or bidding or not target or not target_index or aux.bid_in_progress() then return end
+	if (scanning and not paused) or bidding or not target or not target_index or aux.bid_in_progress() then return end
 	if not at_auction_house() then aux.print('Disenchant scan: open the auction house first.') return end
 	local f, index = target, target_index
-	if not scan_util.test(f.record, index) then return locate() end   -- the page changed: look again
+	if not scan_util.test(f.record, index) then return choose() end   -- the page changed: look again
 	if GetMoney() < f.record.buyout_price then
 		note = '|cffff4040Not enough gold.|r'
 		update()
@@ -395,7 +511,7 @@ function M.buy()
 		bidding = nil
 		f.bought = true
 		bought_count = bought_count + 1
-		locate()
+		choose()
 	end)
 	-- the purchase was not sent (it can only fail before sending when gold ran short):
 	-- let the next click try again
