@@ -168,6 +168,7 @@ update = function()
 			row.icon:SetTexture(r.texture)
 			local color = ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[r.quality]
 			local tag = f.bought and ' |cff40ff40(bought)|r' or f.gone and ' |cff888888(gone)|r'
+				or f.missing and on_page(f) and ' |cffff8040(not on this page)|r'
 				or f == target and (target_index and ' |cffffd100<- next|r' or ' |cff888888(finding...)|r') or ''
 			row.name:SetText((color and color.hex or '') .. r.name .. FONT_COLOR_CODE_CLOSE .. tag)
 			row.level:SetText(r.level)
@@ -193,7 +194,7 @@ update = function()
 	if paused then
 		local here = 0
 		for i = 1, n do if buyable_here(found[i]) then here = here + 1 end end
-		status:SetText(format('Stopped on page %d of search %d: %d to buy here (Next skips them)', paused.page + 1, paused.qi, here))
+		status:SetText(format('Page %d of search %d: %d to buy here.  Next carries on.', paused.page + 1, paused.qi, here))
 	elseif not scanning then
 		local text = format('%d found, %d ticked: %s', n, c, money.to_string(total, nil, true))
 		if bought_count > 0 then text = text .. format('  (bought %d)', bought_count) end
@@ -366,18 +367,22 @@ function M.choose()
 	if paused then
 		generation = generation + 1
 		target, target_index, finding = nil, nil, nil
+		local left = 0
 		for i = 1, getn(found) do
 			local f = found[i]
 			if buyable_here(f) then
+				left = left + 1
 				local index = index_on_page(f.record)
 				if index then
+					f.missing = nil
 					target, target_index = f, index
 					break
 				end
-				f.gone = true   -- bought by someone else meanwhile
+				-- not on the page on screen: never skipped silently; Next carries on
+				f.missing = true
 			end
 		end
-		if target then update() return end
+		if target or left > 0 then update() return end
 		-- nothing left to buy here: read this page again and carry on
 		local at = paused
 		paused = nil
