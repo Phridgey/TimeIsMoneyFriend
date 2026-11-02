@@ -89,6 +89,7 @@ local offset = 0
 local scanning        -- the search is running
 local paused          -- {qi, page}: the scan is stopped on this page for buying
 local pausing         -- set while the scan winds down to a pause
+local rereading       -- the page is being read again because the list on screen went stale
 local scan_gen = 0    -- each scan's number: callbacks from an older scan are ignored
 local unticked, passed = {}, {}   -- by auction signature, kept when a page is read again
 local target          -- the ticked auction the next Buy click buys
@@ -378,11 +379,27 @@ function M.choose()
 					target, target_index = f, index
 					break
 				end
-				-- not on the page on screen: never skipped silently; Next carries on
-				f.missing = true
 			end
 		end
-		if target or left > 0 then update() return end
+		if target then update() return end
+		if left > 0 then
+			if not paused.fresh then
+				-- the list on screen is out of date (a purchase changes it): read this page
+				-- again quietly; auctions still there come back, ones others bought drop off
+				local at = paused
+				paused = nil
+				rereading = true
+				note = 'Refreshing this page...'
+				return run_scan(at.qi, at.page)
+			end
+			-- just read and still not found: say so; Next carries on
+			for i = 1, getn(found) do
+				local f = found[i]
+				if buyable_here(f) then f.missing = true end
+			end
+			update()
+			return
+		end
 		-- nothing left to buy here: read this page again and carry on
 		local at = paused
 		paused = nil
@@ -451,7 +468,9 @@ run_scan = function(qi, page)
 			end
 			if here > 0 then
 				-- stop on this page: its auctions are on screen and can be bought at once
-				pausing = {qi = query_no, page = current_page}
+				pausing = {qi = query_no, page = current_page, fresh = rereading}
+				rereading = nil
+				note = nil
 				scan.stop()
 				paused = pausing
 				scan_gen = scan_gen + 1   -- the stopped scan's last callbacks are ignored
@@ -493,7 +512,7 @@ function M.start()
 	for k in pairs(passed) do passed[k] = nil end
 	offset, bought_count, note = 0, 0, nil
 	generation = generation + 1
-	target, target_index, finding, bidding, paused = nil, nil, nil, nil, nil
+	target, target_index, finding, bidding, paused, rereading = nil, nil, nil, nil, nil, nil
 	status:SetText('Scanning...')
 	run_scan(1, 0)
 end
@@ -515,6 +534,7 @@ function M.buy()
 	aux.place_bid('list', index, f.record.buyout_price, function()
 		bidding = nil
 		f.bought = true
+		if paused then paused.fresh = nil end   -- the page on screen has changed
 		bought_count = bought_count + 1
 		choose()
 	end)
